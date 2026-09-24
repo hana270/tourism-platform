@@ -1,0 +1,26 @@
+/*
+ * Google Translate — masque l'interface native de Google (bandeau, infobulle,
+ * surlignage) : la langue se choisit uniquement via notre propre sélecteur.
+ */
+
+/* Google décale le <body> de 40px quand le bandeau est affiché. */
+body {
+  top: 0 !important;
+  position: static !important;
+}
+
+iframe.skiptranslate,
+.goog-te-banner-frame,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+.VIpgJd-yAWNEb-L7lbkb,
+#goog-gt-tt,
+.goog-tooltip {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}

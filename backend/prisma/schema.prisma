@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id              String       @id @default(cuid())
+  email           String       @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            UserRole     @default(STAFF)
+  status          UserStatus   @default(PENDING)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  username        String?      @unique
+  profilePhoto    String?
+  emailTokens     EmailToken[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model EmailToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  type      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+}
+
+model Category {
+  id           String                @id @default(cuid())
+  isActive     Boolean               @default(true)
+  displayOrder Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  description  String?
+  name         String
+  slug         String                @unique
+  images       CategoryImage[]
+  translations CategoryTranslation[]
+  offers       Offer[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id          String   @id @default(cuid())
+  categoryId  String
+  locale      String
+  name        String
+  slug        String
+  description String?
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+  @@map("category_translations")
+}
+
+model CategoryImage {
+  id           String   @id @default(cuid())
+  categoryId   String
+  url          String
+  thumbnailUrl String
+  mediumUrl    String
+  largeUrl     String
+  altText      String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, displayOrder])
+  @@map("category_images")
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  nameEn    String?
+  offers    Offer[]
+
+  @@map("zones_geo")
+}
+
+model Offer {
+  id                   String              @id @default(cuid())
+  categoryId           String
+  zoneId               String?
+  name                 String
+  description          String?
+  price                Decimal             @db.Decimal(10, 2)
+  priceUnit            String              @default("par personne")
+  isHotel              Boolean             @default(false)
+  capacity             Int?
+  status               OfferStatus         @default(PUBLISHED)
+  availabilityOnDemand Boolean             @default(false)
+  stars                Int?
+  simplePrice          Decimal?            @db.Decimal(10, 2)
+  halfBoardPrice       Decimal?            @db.Decimal(10, 2)
+  allInclusivePrice    Decimal?            @db.Decimal(10, 2)
+  fullBoardPrice       Decimal?            @db.Decimal(10, 2)
+  address              String?
+  googleMapsUrl        String?
+  featured             Boolean             @default(false)
+  slug                 String              @unique
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  nameEn               String?
+  descriptionEn        String?
+  addressEn            String?
+  availabilityBlocks   AvailabilityBlock[]
+  customFields         OfferCustomField[]
+  photos               OfferPhoto[]
+  category             Category            @relation(fields: [categoryId], references: [id])
+  zone                 Zone?               @relation(fields: [zoneId], references: [id])
+  promotions           Promotion[]
+  reservations         Reservation[]
+
+  @@index([categoryId, status, createdAt])
+  @@index([zoneId, status])
+  @@map("offres")
+}
+
+model OfferPhoto {
+  id        String   @id @default(cuid())
+  offerId   String
+  url       String
+  isPrimary Boolean  @default(false)
+  altText   String?
+  createdAt DateTime @default(now())
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, isPrimary])
+  @@map("offre_photos")
+}
+
+model OfferCustomField {
+  id        String @id @default(cuid())
+  offerId   String
+  fieldName String
+  value     String
+  offer     Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId])
+  @@map("offre_champs_personnalises")
+}
+
+model Reservation {
+  id                 String              @id @default(cuid())
+  offerId            String
+  customerName       String
+  customerEmail      String?
+  customerPhone      String
+  bookingDate        DateTime
+  guests             Int                 @default(1)
+  notes              String?
+  status             ReservationStatus   @default(PENDING)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  startDate          DateTime?
+  endDate            DateTime?
+  adminNotes         String?
+  paymentStatus      PaymentStatus       @default(NOT_PAID)
+  availabilityBlocks AvailabilityBlock[]
+  offer              Offer               @relation(fields: [offerId], references: [id])
+
+  @@index([status, bookingDate])
+  @@index([offerId, startDate, endDate])
+  @@map("reservations")
+}
+
+model AvailabilityBlock {
+  id            String       @id @default(cuid())
+  offerId       String
+  startDate     DateTime
+  endDate       DateTime
+  reservationId String?
+  createdAt     DateTime     @default(now())
+  offer         Offer        @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([offerId, startDate, endDate])
+  @@map("availability_blocks")
+}
+
+model Promotion {
+  id             String          @id @default(cuid())
+  offerId        String
+  oldPrice       Decimal         @db.Decimal(10, 2)
+  newPrice       Decimal         @db.Decimal(10, 2)
+  startDate      DateTime
+  endDate        DateTime
+  status         PromotionStatus @default(ACTIVE)
+  showOnHomepage Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  offer          Offer           @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, startDate, endDate, status])
+  @@map("promotions")
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+enum OfferStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONTACTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  NOT_PAID
+}
+
+enum PromotionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
