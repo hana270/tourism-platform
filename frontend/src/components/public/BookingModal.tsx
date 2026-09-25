@@ -101,9 +101,10 @@ export function BookingModal({
     people > 0 &&
     !loading;
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+     async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) return;
+    if (!offer) return;
 
     setError('');
     setLoading(true);
