@@ -1,17 +1,27 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export function createOpaqueToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString("hex");
 }
 
 export function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
+export function safeEqual(left: Buffer, right: Buffer): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const timingSafeEqual = crypto.timingSafeEqual as unknown as (
+    a: Uint8Array,
+    b: Uint8Array
+  ) => boolean;
+
+  const leftBytes = Uint8Array.from(left);
+  const rightBytes = Uint8Array.from(right);
+
+  return timingSafeEqual(leftBytes, rightBytes);
 }
 
 export function addDays(days: number): Date {
