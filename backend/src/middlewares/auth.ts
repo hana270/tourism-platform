@@ -33,11 +33,10 @@ export function sessionCookieOptions(expires: Date) {
   return {
     httpOnly: true,
     secure: isProduction,
-    // 'none' est nécessaire car le frontend (Vercel) et le backend (Render)
-    // seront sur deux domaines différents. En local (dev), on garde 'lax'.
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
     domain: env.COOKIE_DOMAIN,
     expires,
     path: '/',
   };
+
 }
