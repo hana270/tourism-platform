@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 import { Router, Request, Response } from "express";
+import type { FileFilterCallback } from "multer";
 import { OfferStatus } from "@prisma/client";
 import { z } from "zod";
 import slugify from "slugify";
@@ -19,7 +20,11 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024, files: 10 },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (
+    _req: Request,
+    file: Express.Multer.File,
+    cb: FileFilterCallback,
+  ) => {
     const ok = [
       "image/jpeg",
       "image/png",
@@ -27,10 +32,13 @@ const upload = multer({
       "image/heic",
       "image/heif",
     ];
-    if (!ok.includes(file.mimetype))
+
+    if (!ok.includes(file.mimetype)) {
       return cb(
         ApiError.badRequest(`Format d'image non supporté : ${file.mimetype}`),
       );
+    }
+
     cb(null, true);
   },
 }).array("images", 10);
