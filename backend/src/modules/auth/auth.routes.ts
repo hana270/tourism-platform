@@ -12,11 +12,21 @@ import { requireAuth, sessionCookieOptions } from '@/middlewares/auth';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { ApiError } from '@/utils/ApiError';
 
+
 const router = Router();
 const profileUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)),
+  fileFilter: (
+  _req: import("express").Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) =>
+  cb(
+    null,
+    ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)
+  ),
+
 }).single('image');
 const credentials = z.object({ login: z.string().trim().min(3).max(160), password: z.string().min(8).max(128) });
 const registerSchema = z.object({ email: z.string().email().transform((v) => v.toLowerCase().trim()), password: z.string().min(8).max(128), firstName: z.string().trim().min(2).max(80), lastName: z.string().trim().min(2).max(80) });
