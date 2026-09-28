@@ -15,10 +15,14 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
-  // Les images uploadées passent par le même domaine que le site :
-  // plus de blocage CORS / Cross-Origin-Resource-Policy (helmet) du backend.
+  // Proxy des images uploadées : /uploads/... -> API /uploads/...
   async rewrites() {
-    return [{ source: '/uploads/:path*', destination: `${API_ORIGIN}/uploads/:path*` }];
+    return [
+      {
+        source: '/uploads/:path*',
+        destination: `${API_ORIGIN}/uploads/:path*`,
+      },
+    ];
   },
 };
 
