@@ -351,3 +351,26 @@ body { top: 0 !important; }
 body { top: 0 !important; }
 .goog-te-banner-frame { display: none !important; }
 @keyframes public-reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === IHOST — amélioration client claire et lisible === */
+.public-shell {
+  background: #ffffff !important;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.public-shell h1, .public-shell h2, .public-shell h3, .public-shell h4 {
+  letter-spacing: -0.025em;
+}
+.public-shell button, .public-shell a, .public-shell input, .public-shell select, .public-shell textarea {
+  font-family: inherit;
+}
+.public-card { border-color: var(--line); box-shadow: 0 14px 38px rgba(23,32,29,.07); }
+.public-card:hover { border-color: var(--accent-soft); box-shadow: 0 22px 48px rgba(23,32,29,.12); }
+.public-image-fallback { background: linear-gradient(135deg, #fff5ee 0%, #f5f8f5 52%, #e7f1ed 100%); color: var(--accent-deep); }
+@media (max-width: 640px) {
+  .public-shell { font-size: 16px; }
+  .public-shell h1 { line-height: 1.08; }
+  .public-shell h2 { line-height: 1.15; }
+}

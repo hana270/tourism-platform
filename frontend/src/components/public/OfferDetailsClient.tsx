@@ -9,6 +9,7 @@ import { BookingModal } from '@/components/public/BookingModal';
 import { OffersApi } from '@/lib/offers.api';
 import { Offer } from '@/types/offer';
 import { imageUrl } from '@/lib/api';
+import { RemoteImage } from '@/components/ui/RemoteImage';
 
 function priceRows(o: Offer) {
   return [
@@ -62,7 +63,7 @@ export default function OfferDetailsClient({ slug }: { slug: string }) {
         <div className="overflow-hidden rounded-[30px] bg-white shadow-xl">
           <div className="grid lg:grid-cols-[1.45fr_.75fr]">
             <div className="grid gap-1 bg-slate-100 sm:grid-cols-2">
-              {photos.slice(0,5).map((p,i)=><div key={p.id||p.url} className={`${i===0?'sm:col-span-2 aspect-[16/8]':'aspect-[4/3]'} overflow-hidden bg-slate-100`}><img src={imageUrl(p.url)} alt={p.altText||offer.name} className="h-full w-full object-cover transition duration-700 hover:scale-[1.025]"/></div>)}
+              {photos.slice(0,5).map((p,i)=><div key={p.id||p.url} className={`${i===0?'sm:col-span-2 aspect-[16/8]':'aspect-[4/3]'} overflow-hidden bg-slate-100`}><RemoteImage src={p.url} alt={p.altText||offer.name} className="h-full w-full"/></div>)}
             </div>
             <div className="p-6 sm:p-8">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">{offer.category?.name}{offer.isHotel&&offer.stars?<><span>·</span><span className="flex items-center gap-1 text-amber-600"><Star size={12} fill="currentColor"/>{offer.stars} étoiles</span></>:null}</div>

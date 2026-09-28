@@ -22,11 +22,14 @@ export function RemoteImage({
   if (!url || state === 'failed') {
     return (
       <div
-        className={clsx('flex items-center justify-center bg-surface-alt text-ink-faint', className)}
+        className={clsx('public-image-fallback flex items-center justify-center bg-surface-alt text-ink-faint', className)}
         role="img"
         aria-label={alt}
       >
-        <ImageOff size={16} strokeWidth={1.5} />
+        <span className="flex flex-col items-center gap-2 px-4 text-center">
+          <ImageOff size={22} strokeWidth={1.5} />
+          <span className="text-[11px] font-semibold text-[var(--accent-deep)]">Image temporairement indisponible</span>
+        </span>
       </div>
     );
   }

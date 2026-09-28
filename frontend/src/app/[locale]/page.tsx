@@ -14,6 +14,7 @@ import { OffersApi } from "@/lib/offers.api";
 import { ZonesApi } from "@/lib/zones.api";
 import { SiteSettingsApi, HomepageSettings } from "@/lib/site-settings.api";
 import { imageUrl } from "@/lib/api";
+import { RemoteImage } from "@/components/ui/RemoteImage";
 import { Category } from "@/types/category";
 import { Offer, Zone } from "@/types/offer";
 
@@ -194,10 +195,9 @@ export default function PublicHome() {
                 >
                   <div className="aspect-[1.1/1] bg-[var(--canvas-alt)]">
                     {image ? (
-                      <img
-                        src={imageUrl(image.largeUrl || image.url)}
+                      <RemoteImage
+                        src={image.largeUrl || image.url}
                         alt={image.altText || c.name}
-                        loading="lazy"
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                       />
                     ) : (

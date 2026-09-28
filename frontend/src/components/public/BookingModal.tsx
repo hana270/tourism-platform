@@ -30,6 +30,29 @@ function buildWhatsAppUrl(number: string, message: string): string {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
+function buildWhatsAppAppUrl(number: string, message: string): string {
+  return `whatsapp://send?phone=${number}&text=${encodeURIComponent(message)}`;
+}
+
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+}
+
+function openWhatsApp(number: string, message: string) {
+  const webUrl = buildWhatsAppUrl(number, message);
+  if (!isMobileDevice()) {
+    window.location.assign(`https://web.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(message)}`);
+    return;
+  }
+
+  // Le schéma whatsapp:// demande l'ouverture de l'application native.
+  // Si elle n'est pas installée, on bascule automatiquement vers WhatsApp Web.
+  const fallback = window.setTimeout(() => window.location.assign(webUrl), 1400);
+  const cancelFallback = () => window.clearTimeout(fallback);
+  document.addEventListener('visibilitychange', cancelFallback, { once: true });
+  window.location.assign(buildWhatsAppAppUrl(number, message));
+}
+
 function formatOfferPrice(offer: Offer) {
   if (offer.isHotel) {
     const prices = [offer.simplePrice, offer.halfBoardPrice, offer.fullBoardPrice, offer.allInclusivePrice]
@@ -95,7 +118,6 @@ export function BookingModal({
 
     setError('');
     setLoading(true);
-    const popup = window.open('', '_blank', 'noopener,noreferrer');
 
     try {
       const reservation = await ReservationsApi.create({
@@ -116,34 +138,42 @@ export function BookingModal({
       const reservationId = typeof reservation === 'object' && reservation && 'id' in reservation
         ? String((reservation as { id: string }).id)
         : '';
-      const message = [
-        'Bonjour, je souhaite réserver une offre sur IHOST.',
-        '',
-        'INFORMATIONS DE LA DEMANDE',
-        reservationId ? `Référence : ${reservationId}` : '',
-        `Offre : ${selectedOffer.name}`,
+      const typeLabel = selectedOffer.isHotel ? 'hôtel' : 'offre';
+      const details = [
         selectedOffer.category?.name ? `Catégorie : ${selectedOffer.category.name}` : '',
         selectedOffer.zone?.name ? `Zone : ${selectedOffer.zone.name}` : '',
-        `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
         selectedOffer.address ? `Adresse : ${selectedOffer.address}` : '',
+        selectedOffer.capacity ? `Capacité : ${selectedOffer.capacity} personnes` : '',
+        `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
+        ...(selectedOffer.customFields ?? []).map((field) => `${field.fieldName} : ${field.value}`),
+      ].filter(Boolean);
+      const message = [
+        selectedOffer.isHotel
+          ? `Bonjour, je souhaite réserver cet hôtel sur IHOST.`
+          : `Bonjour, je souhaite réserver cette offre sur IHOST.`,
         '',
-        'INFORMATIONS DU CLIENT',
+        'DÉTAILS DE LA RÉSERVATION',
+        reservationId ? `Référence : ${reservationId}` : '',
+        `Nom de l’offre : ${selectedOffer.name}`,
+        `Type : ${typeLabel}`,
+        ...details,
+        '',
+        'COORDONNÉES DU CLIENT',
         `Nom complet : ${name.trim()}`,
         `Téléphone : ${phone.trim()}`,
         email.trim() ? `E-mail : ${email.trim()}` : '',
-        `Dates : ${from} → ${to}`,
-        `Voyageurs : ${people}`,
+        `Dates souhaitées : du ${from} au ${to}`,
+        `Nombre de personnes : ${people}`,
         notes.trim() ? `Message : ${notes.trim()}` : '',
         '',
-        'Merci de confirmer la disponibilité et les modalités.',
+        selectedOffer.isHotel
+          ? 'Merci de bien vouloir vérifier la disponibilité de cet hôtel pour ma réservation et me confirmer les modalités.'
+          : `Je souhaite réserver cette offre pour la période du ${from} au ${to}. Merci de me confirmer la prise en compte de ma demande.`,
       ].filter(Boolean).join('\n');
 
-      const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
-      if (popup && !popup.closed) popup.location.href = whatsappUrl;
-      else window.location.assign(whatsappUrl);
+      openWhatsApp(whatsappNumber, message);
       onClose();
     } catch (exception) {
-      if (popup && !popup.closed) popup.close();
       setError(exception instanceof Error ? exception.message : 'Impossible d’enregistrer la demande de réservation.');
     } finally {
       setLoading(false);

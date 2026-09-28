@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { BedDouble, MapPin, Users, Star, Clock3 } from 'lucide-react';
 import { Offer } from '@/types/offer';
-import { imageUrl } from '@/lib/api';
+import { RemoteImage } from '@/components/ui/RemoteImage';
 
 function activePromotion(offer: Offer) {
   const now = Date.now();
@@ -30,7 +30,7 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
     <article className="group overflow-hidden rounded-3xl border border-[var(--line)] bg-white transition-shadow duration-300 hover:shadow-[0_20px_45px_-15px_rgba(28,24,21,0.25)]">
       <div className="relative aspect-[4/3] overflow-hidden bg-[var(--canvas-alt)]">
         {photo ? (
-          <img src={imageUrl(photo.url)} alt={photo.altText || offer.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+          <RemoteImage src={photo.url} alt={photo.altText || offer.name} className="h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center text-[var(--ink-soft)]"><BedDouble size={40}/></div>
         )}

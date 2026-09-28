@@ -19,7 +19,12 @@ export const api = axios.create({
 export function imageUrl(path: string | null | undefined): string {
   if (!path) return '';
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
-  const assetOrigin = (process.env.NEXT_PUBLIC_ASSET_ORIGIN ?? API_ORIGIN).replace(/\/$/, '');
+  const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim();
+  const assetOrigin = (
+    configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
+      ? configuredAssetOrigin
+      : API_ORIGIN
+  ).replace(/\/$/, '');
   return `${assetOrigin}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
