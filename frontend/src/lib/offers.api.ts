@@ -1,4 +1,4 @@
-import { api, ApiEnvelope } from "./api";
+import { api, ApiEnvelope, imageUrl } from "./api";
 import { Offer, OfferFormValues, OfferStatus } from "@/types/offer";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
@@ -30,14 +30,7 @@ function payload(values: OfferFormValues) {
 
 /** Transforme "/uploads/..." en URL absolue vers le backend. */
 export function assetUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  const base = (
-    process.env.NEXT_PUBLIC_ASSET_ORIGIN ??
-    process.env.NEXT_PUBLIC_API_ORIGIN ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:4000/api"
-  ).replace(/\/api\/?$/, "");
-  return `${base}${url}`;
+  return imageUrl(url);
 }
 
 export type OfferSearchParams = {

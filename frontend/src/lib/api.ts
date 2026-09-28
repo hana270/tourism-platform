@@ -18,14 +18,18 @@ export const api = axios.create({
 
 export function imageUrl(path: string | null | undefined): string {
   if (!path) return '';
-  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  const cleanPath = String(path).trim().replace(/\\/g, '/');
+  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
   const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim();
   const assetOrigin = (
     configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
       ? configuredAssetOrigin
       : API_ORIGIN
-  ).replace(/\/$/, '');
-  return `${assetOrigin}${path.startsWith('/') ? '' : '/'}${path}`;
+  )
+    .replace(/\/api\/v1\/?$/i, '')
+    .replace(/\/api\/?$/i, '')
+    .replace(/\/$/, '');
+  return `${assetOrigin}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
 }
 
 export type ApiEnvelope<T> = {
