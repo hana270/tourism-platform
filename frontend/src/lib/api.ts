@@ -16,17 +16,30 @@ export const api = axios.create({
   timeout: 8_000,
 });
 
+// Les envois de fichiers (images) sont plus longs qu'une requête classique :
+// on leur laisse 2 minutes au lieu de 8 secondes, sans limite de taille côté client.
+const UPLOAD_TIMEOUT_MS = 120_000;
+api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.timeout = UPLOAD_TIMEOUT_MS;
+    config.maxBodyLength = Infinity;
+    config.maxContentLength = Infinity;
+  }
+  return config;
+});
+
 export function imageUrl(path: string | null | undefined): string {
   if (!path) return '';
   const cleanPath = String(path).trim().replace(/\\/g, '/');
-  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
   const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim();
-  const hasRealAssetOrigin = !!configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin);
-  // Images locales (/uploads/...) : chemin relatif -> servi via le proxy Next.js (rewrites)
-  // ce qui évite les blocages CORS / CORP / CSP entre :3000 et :4000.
-  if (!hasRealAssetOrigin && /^\/?uploads\//i.test(cleanPath)) {
-    return cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+  const hasCdn = !!configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin);
+  if (!hasCdn) {
+    // URL absolue vers le backend local -> chemin relatif (servi via le proxy Next)
+    const local = cleanPath.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/uploads\/.*)$/i);
+    if (local) return local[1];
+    if (cleanPath.startsWith('/uploads/')) return cleanPath;
   }
+  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
   const assetOrigin = (
     configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
       ? configuredAssetOrigin
