@@ -19,8 +19,15 @@ export const api = axios.create({
 export function imageUrl(path: string | null | undefined): string {
   if (!path) return '';
   const cleanPath = String(path).trim().replace(/\\/g, '/');
-  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
   const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim();
+  const hasCdn = !!configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin);
+  if (!hasCdn) {
+    // URL absolue vers le backend local -> chemin relatif (servi via le proxy Next)
+    const local = cleanPath.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/uploads\/.*)$/i);
+    if (local) return local[1];
+    if (cleanPath.startsWith('/uploads/')) return cleanPath;
+  }
+  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
   const assetOrigin = (
     configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
       ? configuredAssetOrigin

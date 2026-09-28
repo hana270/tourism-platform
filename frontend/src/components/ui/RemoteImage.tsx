@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import clsx from 'clsx';
 import { imageUrl } from '@/lib/api';
@@ -17,7 +17,22 @@ export function RemoteImage({
   eager?: boolean;
 }) {
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const imgRef = useRef<HTMLImageElement>(null);
   const url = imageUrl(src);
+
+  // Nouvelle source -> on repart de zéro.
+  useEffect(() => {
+    setState('loading');
+  }, [url]);
+
+  // L'image peut déjà être chargée (cache / rendu serveur) AVANT que React
+  // n'attache onLoad : dans ce cas l'événement est perdu et l'image restait
+  // invisible (opacity-0). On vérifie donc l'état réel de l'élément.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img || !img.complete) return;
+    setState(img.naturalWidth > 0 ? 'ready' : 'failed');
+  }, [url]);
 
   if (!url || state === 'failed') {
     return (
@@ -38,6 +53,7 @@ export function RemoteImage({
       {state === 'loading' && <span className="skeleton absolute inset-0" aria-hidden />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={imgRef}
         src={url}
         alt={alt}
         loading={eager ? 'eager' : 'lazy'}
