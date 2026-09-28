@@ -24,6 +24,10 @@ const createSchema = z
   .refine((v) => v.endDate > v.startDate, {
     path: ["endDate"],
     message: "La date de fin doit être postérieure à la date de début.",
+  })
+  .refine((v) => v.startDate >= new Date(new Date().toISOString().slice(0, 10)), {
+    path: ["startDate"],
+    message: "La date d’arrivée ne peut pas être dans le passé.",
   });
 const updateSchema = z.object({
   status: z.nativeEnum(ReservationStatus).optional(),
@@ -87,9 +91,11 @@ router.post(
         guests: input.guests,
         notes: input.notes || null,
       },
-      // category et zone sont inclus pour que le message WhatsApp admin
-      // affiche le détail complet de l'offre concernée.
-      include: { offer: { include: { category: true, zone: true } } },
+      include: {
+        offer: {
+          include: { category: true, zone: true },
+        },
+      },
     });
 
     // Notification serveur vers le WhatsApp professionnel de l'administrateur,

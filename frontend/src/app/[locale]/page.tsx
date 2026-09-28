@@ -280,12 +280,20 @@ export default function PublicHome() {
                   Choisissez une offre, envoyez votre demande et poursuivez l&apos;échange avec l&apos;administrateur directement sur WhatsApp.
                 </p>
               </div>
-              <Link
-                href={`/${locale}/search`}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-6 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[var(--accent-deep)] hover:shadow-xl"
-              >
-                Explorer les offres <ArrowRight size={17} />
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={`/${locale}/search`}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-6 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[var(--accent-deep)] hover:shadow-xl"
+                >
+                  Explorer les offres <ArrowRight size={17} />
+                </Link>
+                <Link
+                  href={`/${locale}/contact`}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--line)] bg-white px-6 py-4 text-sm font-semibold text-[var(--ink)] transition hover:-translate-y-0.5 hover:border-[var(--accent-soft)] hover:shadow-lg"
+                >
+                  Contacter l’équipe
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -294,7 +302,7 @@ export default function PublicHome() {
       <footer className="border-t border-[var(--line)] bg-white py-8">
         <div className="public-container flex flex-col gap-3 text-xs text-[var(--ink-soft)] sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} {site.nomSite}. Tous droits réservés.</span>
-          <span>Plateforme touristique IHOST</span>
+          <Link href={`/${locale}/contact`} className="transition hover:text-[var(--accent-deep)]">Contacter l’équipe</Link>
         </div>
       </footer>
 

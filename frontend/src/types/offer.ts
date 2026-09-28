@@ -27,6 +27,7 @@ export type Offer = {
   name: string;
   description: string | null;
   price: string | number;
+  priceUnit?: string;
   isHotel: boolean;
   capacity: number | null;
   /** false = platform checks and blocks the full offer automatically; true = partner availability is checked manually. */

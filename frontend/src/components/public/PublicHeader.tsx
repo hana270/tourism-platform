@@ -259,6 +259,13 @@ export function PublicHeader() {
 
           {/* Droite : recherche mobile, traduction, menu mobile */}
           <div className="ms-auto flex items-center gap-2">
+            <Link
+              href={`/${locale}/contact`}
+              onClick={closeMenus}
+              className={`hidden rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${scrolled ? "text-[var(--ink)] hover:bg-[var(--canvas-alt)]" : "text-white hover:bg-white/10"}`}
+            >
+              Contact
+            </Link>
             <button
               type="button"
               aria-label="Rechercher"
@@ -503,6 +510,12 @@ export function PublicHeader() {
               className="mt-4 block rounded-xl bg-[var(--canvas-alt)] px-4 py-3 text-sm font-bold text-[var(--ink)]"
             >
               Explorer toutes les offres
+            </Link>
+            <Link
+              href={`/${locale}/contact`}
+              className="mt-2 block rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-bold text-[var(--ink)]"
+            >
+              Contacter l’équipe
             </Link>
 
             <details className="group mt-2 border-b border-[var(--line)]">

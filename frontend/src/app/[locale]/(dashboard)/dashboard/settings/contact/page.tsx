@@ -55,7 +55,8 @@ export default function ContactSettingsPage() {
         onSubmit={(e) => void save(e)}
       >
         <div className="rounded-xl bg-surface-alt p-4 text-sm text-ink-soft md:col-span-2">
-          {t("whatsappHint")}
+          <p>{t("whatsappHint")}</p>
+          <p className="mt-2 text-xs font-semibold text-ink"><span className="text-danger">*</span> Le numéro WhatsApp est obligatoire pour recevoir les demandes depuis le bouton Réserver.</p>
         </div>
         <Field
           label={t("whatsapp")}

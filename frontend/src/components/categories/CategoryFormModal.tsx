@@ -104,6 +104,7 @@ export function CategoryFormModal({
               {initial ? t("titleEdit") : t("titleCreate")}
             </h2>
             <p className="mt-1 text-xs text-ink-faint">
+              <span className="text-danger">*</span> Champ obligatoire · le nom doit contenir au moins 2 caractères.
             </p>
           </div>
           <button type="button" onClick={onClose} className="btn-icon h-9 w-9">

@@ -57,9 +57,9 @@ export function CategoryTable({
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="mx-auto w-full text-center text-sm">
           <thead>
-            <tr className="border-b border-border bg-surface-alt/60 text-left text-xs text-ink-soft">
+            <tr className="border-b border-border bg-surface-alt/60 text-center text-xs text-ink-soft">
               <th className="w-16 px-4 py-3 font-medium" aria-label="Order" />
               <th className="px-2 py-3 font-medium">{t('table.image')}</th>
               <th className="px-4 py-3 font-medium">{t('table.name')}</th>
@@ -89,7 +89,7 @@ export function CategoryTable({
                   )}
                 >
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1" title={t('dragHint')}>
+                    <div className="flex items-center justify-center gap-1" title={t('dragHint')}>
                       <GripVertical size={15} className="cursor-grab text-ink-faint active:cursor-grabbing" />
                       <div className="flex flex-col">
                         <button type="button" disabled={index === 0} onClick={() => move(index, -1)} className="btn-icon h-6 w-6 disabled:opacity-25" title={t('moveUp')} aria-label={t('moveUp')}>
@@ -106,7 +106,7 @@ export function CategoryTable({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={imgUrl} alt={category.name} loading="lazy" decoding="async" className="h-10 w-10 rounded-lg border border-border object-cover" />
                     ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-border text-ink-faint"><ImageOff size={15} /></div>
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-border text-ink-faint"><ImageOff size={15} /></div>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -123,7 +123,7 @@ export function CategoryTable({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <Link href={`/${locale}/dashboard/categories/${category.id}`} aria-label={t('view')} title={t('view')} className="btn-icon h-8 w-8"><Eye size={14} /></Link>
                       <button type="button" onClick={() => onEdit(category)} aria-label={t('edit')} title={t('edit')} className="btn-icon h-8 w-8"><Pencil size={14} /></button>
                       <button type="button" onClick={() => onDelete(category)} disabled={deletingId === category.id} aria-label={t('delete')} title={t('delete')} className="btn-icon h-8 w-8 hover:border-danger/30 hover:bg-danger-soft hover:text-danger disabled:opacity-50"><Trash2 size={14} /></button>

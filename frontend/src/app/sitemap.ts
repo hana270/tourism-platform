@@ -11,6 +11,7 @@ export default async function sitemap():Promise<MetadataRoute.Sitemap>{
  const rows:MetadataRoute.Sitemap=[];
  for(const locale of locales){
    rows.push({url:`${SITE_URL}/${locale}`,lastModified:now,changeFrequency:'daily',priority:1});
+   rows.push({url:`${SITE_URL}/${locale}/contact`,lastModified:now,changeFrequency:'monthly',priority:.5});
    rows.push({url:`${SITE_URL}/${locale}/search`,lastModified:now,changeFrequency:'daily',priority:.8});
    const categories=await json(`/categories?locale=${locale}`);
    const offers=await json(`/offers?status=PUBLISHED&locale=${locale}`);
