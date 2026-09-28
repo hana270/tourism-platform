@@ -1,39 +1,26 @@
-/* === IHOST — design tokens ===
-   À coller en haut de app/globals.css (avant le reste).
-   Palette volontairement SANS bleu : blanc chaud / encre / orange brûlé.
-   Import des polices (Fraunces = display avec caractère, Inter = texte). */
-
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap");
+/* === IHOST — design tokens client : blanc + jaune ===
+   Le jaune est réservé aux fonds/boutons (texte foncé dessus).
+   Pour du texte ou des icônes sur fond blanc, utiliser --accent-deep. */
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap");
 
 :root {
-  /* Neutres chauds (pas de "slate" bleuté) */
-  --canvas: #fbf8f3;       /* fond principal, blanc cassé */
-  --canvas-alt: #f4ede2;   /* fond secondaire, sable */
-  --ink: #1c1815;          /* texte / fonds sombres, noir chaud */
-  --ink-soft: #57504a;     /* texte secondaire */
-  --line: #e7ded0;         /* bordures */
+  --canvas: #ffffff;
+  --canvas-alt: #fff9e0;
+  --ink: #1a1a1a;
+  --ink-soft: #4d4a44;
+  --line: #ece7d6;
 
-  /* Accent — orange brûlé, la seule couleur vive du site */
-  --accent: #d9611b;
-  --accent-deep: #a8420c;
-  --accent-soft: #f4c9a0;
-  --accent-tint: #fdf0e4;
-
-  /* Une seule touche de bleu "pro", utilisée avec parcimonie (badges de confiance) */
+  --accent: #ffc81e;
+  --accent-hover: #f5b800;
+  --accent-deep: #8a5b00;
+  --accent-soft: #ffe58a;
+  --accent-tint: #fff4c2;
+  --on-accent: #1a1a1a;
   --trust: #2c4a52;
 
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Figtree", ui-sans-serif, system-ui, sans-serif;
 }
-
-
-
-
-
-
-
-
-
 
 @tailwind base;
 @tailwind components;
@@ -48,7 +35,6 @@
   color-scheme: light;
 
   --font-inter: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
   --c-bg: 255 255 255;
   --c-surface: 255 255 255;
@@ -374,3 +360,35 @@ body { top: 0 !important; }
   .public-shell h1 { line-height: 1.08; }
   .public-shell h2 { line-height: 1.15; }
 }
+
+
+/* === Tables admin : alignement cohérent ===
+   Titres ET contenus alignés au début ; colonne d'actions à la fin. */
+.data-table { width: 100%; font-size: 0.875rem; }
+.data-table thead th {
+  text-align: start; vertical-align: middle; white-space: nowrap;
+  padding: 0.75rem 1.25rem; font-size: 0.75rem; font-weight: 600;
+  letter-spacing: 0.02em; color: rgb(var(--c-ink-faint));
+  background: rgb(var(--c-surface-alt)); border-bottom: 1px solid rgb(var(--c-border));
+}
+.data-table tbody td { text-align: start; vertical-align: middle; padding: 0.875rem 1.25rem; }
+.data-table tbody tr + tr td { border-top: 1px solid rgb(var(--c-border)); }
+.data-table.has-actions thead th:last-child,
+.data-table.has-actions tbody td:last-child { text-align: end; }
+.data-table.has-actions tbody td:last-child > div,
+.data-table.has-actions tbody td:last-child > .flex { justify-content: flex-end; }
+.data-table .col-narrow { width: 4.5rem; }
+
+/* === Client : jaune lisible === */
+.public-shell ::selection { background: var(--accent-soft); color: var(--ink); }
+.btn-yellow {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  background: var(--accent); color: var(--on-accent); font-weight: 700;
+  border-radius: 999px; padding: .85rem 1.5rem; font-size: .9rem;
+  transition: background-color .15s ease, transform .15s ease;
+}
+.btn-yellow:hover { background: var(--accent-hover); }
+.btn-yellow:active { transform: scale(.98); }
+.chip-row { display: flex; gap: .625rem; overflow-x: auto; scrollbar-width: none; padding-bottom: .25rem; }
+.chip-row::-webkit-scrollbar { display: none; }
+.public-shell :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }

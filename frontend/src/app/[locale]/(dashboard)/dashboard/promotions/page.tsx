@@ -188,15 +188,15 @@ export default function PromotionsPage() {
         </div>
       </div>
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="border-b border-border bg-surface-alt text-xs uppercase tracking-wide text-ink-faint">
+        <table className="data-table has-actions">
+          <thead>
             <tr>
-              <th className="px-5 py-3">{t("offer")}</th>
-              <th className="px-5 py-3">{t("oldPrice")}</th>
-              <th className="px-5 py-3">{t("newPrice")}</th>
-              <th className="px-5 py-3">{t("period")}</th>
-              <th className="px-5 py-3">{t("status")}</th>
-              <th className="px-5 py-3 text-right">{t("actions")}</th>
+              <th>{t("offer")}</th>
+              <th>{t("oldPrice")}</th>
+              <th>{t("newPrice")}</th>
+              <th>{t("period")}</th>
+              <th>{t("status")}</th>
+              <th>{t("actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -206,25 +206,25 @@ export default function PromotionsPage() {
                   key={row.id}
                   className={`transition-colors hover:bg-surface-alt ${timingStatus(row) === "ACTIVE" ? "bg-emerald-50/50" : timingStatus(row) === "EXPIRED" ? "bg-red-50/60" : timingStatus(row) === "UPCOMING" ? "bg-amber-50/60" : "bg-slate-50/70"}`}
                 >
-                  <td className="px-5 py-4 font-medium text-ink">
+                  <td className="font-medium text-ink">
                     {row.offer?.name ??
                       offerOptions.find((o) => o.id === row.offerId)?.name ??
                       "—"}
                   </td>
-                  <td className="px-5 py-4 text-ink-faint line-through">
+                  <td className="text-ink-faint line-through">
                     {row.oldPrice} TND
                   </td>
-                  <td className="px-5 py-4">
+                  <td>
                     <div className="flex items-center gap-2"><span className="font-semibold text-ink">{row.newPrice} TND</span><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700">−{discountPercent(row.oldPrice, row.newPrice)}%</span></div>
                   </td>
-                  <td className="px-5 py-4 text-ink-soft">
+                  <td className="text-ink-soft">
                     {new Date(row.startDate).toLocaleDateString()} →{" "}
                     {new Date(row.endDate).toLocaleDateString()}
                   </td>
-                  <td className="px-5 py-4">
+                  <td>
                     {(() => { const state = timingStatus(row); const config = state === "ACTIVE" ? ["En cours", "bg-emerald-100 text-emerald-700"] : state === "EXPIRED" ? ["Expirée", "bg-red-100 text-red-700"] : state === "UPCOMING" ? ["À venir", "bg-amber-100 text-amber-800"] : ["Désactivée", "bg-slate-100 text-slate-600"]; return <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold ${config[1]}`}>{config[0]}</span>; })()}
                   </td>
-                  <td className="px-5 py-4">
+                  <td>
                     <div className="flex justify-end gap-2">
                       <button
                         className="btn-icon h-8 w-8"

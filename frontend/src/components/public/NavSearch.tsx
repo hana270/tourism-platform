@@ -156,7 +156,7 @@ export function NavSearch({
             }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-start text-sm font-medium text-[var(--ink)] hover:bg-[var(--canvas-alt)]"
           >
-            <Icon size={16} className="shrink-0 text-[var(--accent)]" aria-hidden="true" />
+            <Icon size={16} className="shrink-0 text-[var(--accent-deep)]" aria-hidden="true" />
             {item.name}
           </button>
         ))}
@@ -171,7 +171,7 @@ export function NavSearch({
     <form ref={formRef} onSubmit={submit} role="search" aria-label="Rechercher une offre" className={st.shell}>
       <div className={`${st.wrap} min-w-0 flex-1`}>
         <label className={st.cell}>
-          <MapPin size={st.icon} className="shrink-0 text-[var(--accent)]" aria-hidden="true" />
+          <MapPin size={st.icon} className="shrink-0 text-[var(--accent-deep)]" aria-hidden="true" />
           <input
             type="text"
             value={s.text}
@@ -216,7 +216,7 @@ export function NavSearch({
           onClick={() => setOpen((o) => (o === 'date' ? null : 'date'))}
           className={`${st.cell} whitespace-nowrap font-medium text-[var(--ink)]`}
         >
-          <CalendarDays size={st.icon} className="shrink-0 text-[var(--accent)]" aria-hidden="true" />
+          <CalendarDays size={st.icon} className="shrink-0 text-[var(--accent-deep)]" aria-hidden="true" />
           {dateLabel}
         </button>
 
@@ -277,7 +277,7 @@ export function NavSearch({
           onClick={() => setOpen((o) => (o === 'guests' ? null : 'guests'))}
           className={`${st.cell} whitespace-nowrap font-medium text-[var(--ink)]`}
         >
-          <Users size={st.icon} className="shrink-0 text-[var(--accent)]" aria-hidden="true" />
+          <Users size={st.icon} className="shrink-0 text-[var(--accent-deep)]" aria-hidden="true" />
           {guestLabel}
         </button>
 
@@ -315,7 +315,7 @@ export function NavSearch({
 
       <button
         type="submit"
-        className={`${st.button} flex shrink-0 items-center justify-center gap-2 bg-[var(--accent)] text-sm font-bold text-white transition-colors hover:bg-[var(--accent-deep)]`}
+        className={`${st.button} flex shrink-0 items-center justify-center gap-2 bg-[var(--accent)] text-sm font-bold text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]`}
       >
         <Search size={16} aria-hidden="true" />
         <span className={compact ? 'sr-only' : ''}>Rechercher</span>

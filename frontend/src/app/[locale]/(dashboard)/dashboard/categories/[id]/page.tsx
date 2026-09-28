@@ -58,9 +58,9 @@ export default function CategoryDetailsPage({ params: { id } }: { params: { id: 
         </div>
         {offers.length ? (
           <div className="overflow-x-auto">
-            <table className="mx-auto w-full min-w-[560px] text-center text-sm">
-              <thead className="border-b border-border bg-surface-alt text-xs uppercase tracking-wide text-ink-faint"><tr><th className="px-5 py-3 font-medium">{t("offerName")}</th><th className="px-5 py-3 font-medium">{t("offerPrice")}</th><th className="px-5 py-3 font-medium">{t("table.actions")}</th></tr></thead>
-              <tbody className="divide-y divide-border">{offers.map((offer) => <tr key={offer.id} className="transition hover:bg-surface-alt/60"><td className="px-5 py-4 font-medium text-ink">{offer.name}</td><td className="px-5 py-4 text-ink-soft">{offer.price} TND</td><td className="px-5 py-4"><Link className="btn-icon mx-auto h-8 w-8" href={`/${locale}/dashboard/offers/${offer.id}`} aria-label={t("view")}><Eye size={15} /></Link></td></tr>)}</tbody>
+            <table className="data-table has-actions">
+              <thead><tr><th>{t("offerName")}</th><th>{t("offerPrice")}</th><th>{t("table.actions")}</th></tr></thead>
+              <tbody className="divide-y divide-border">{offers.map((offer) => <tr key={offer.id} className="transition hover:bg-surface-alt/60"><td className="font-medium text-ink">{offer.name}</td><td className="text-ink-soft">{offer.price} TND</td><td><Link className="btn-icon h-8 w-8" href={`/${locale}/dashboard/offers/${offer.id}`} aria-label={t("view")}><Eye size={15} /></Link></td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="p-10 text-center text-sm text-ink-faint">{t("noOffers")}</p>}

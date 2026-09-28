@@ -136,34 +136,34 @@ export default function ZonesPage() {
         </div>
       </div>
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-sm">
-          <thead className="border-b border-border bg-surface-alt text-xs uppercase tracking-wide text-ink-faint">
+        <table className="data-table has-actions">
+          <thead>
             <tr>
-              <th className="px-5 py-3">{t("name")}</th>
-              <th className="px-5 py-3">{t("offers")}</th>
-              <th className="px-5 py-3 text-right">{t("actions")}</th>
+              <th>{t("name")}</th>
+              <th>{t("offers")}</th>
+              <th>{t("actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td className="p-6" colSpan={4}>
+                <td colSpan={4}>
                   Chargement…
                 </td>
               </tr>
             ) : (
               zones.map((zone) => (
                 <tr key={zone.id}>
-                  <td className="px-5 py-4">
+                  <td>
                     <span className="inline-flex items-center gap-2 font-medium text-ink">
                       <MapPin size={15} />
                       {zone.name}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-ink-soft">
+                  <td className="text-ink-soft">
                     {zone._count?.offers ?? 0}
                   </td>
-                  <td className="px-5 py-4">
+                  <td>
                     <div className="flex justify-end gap-2">
                       <Link
                         className="btn-icon h-8 w-8"

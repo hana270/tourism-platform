@@ -70,7 +70,7 @@ export default function CategoryPageClient({ slug }: { slug: string }) {
           <h1 className="text-2xl font-black">Catégorie introuvable</h1>
           <Link
             href={`/${locale}`}
-            className="mt-4 inline-flex rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+            className="mt-4 inline-flex rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-bold text-[var(--on-accent)]"
           >
             Retour à l&apos;accueil
           </Link>

@@ -162,26 +162,20 @@ export function PublicHeader() {
   };
   const searchUrl = `/${locale}/search`;
 
-  const ghost = scrolled
-    ? "border-[var(--line)] bg-white text-[var(--ink)]"
-    : "border-white/25 bg-white/10 text-white";
+  const ghost = "border-[var(--line)] bg-white text-[var(--ink)]";
 
   return (
     <header
       ref={headerRef}
       onMouseLeave={() => setMenu(null)}
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "border-b border-[var(--line)] bg-white/95 shadow-sm backdrop-blur-xl"
-          : "bg-transparent"
+        "border-b border-[var(--line)] bg-white/95 backdrop-blur-xl"
       }`}
     >
       <div className="public-container relative">
         <div
           className={`flex min-h-[68px] items-center gap-4 ${
-            scrolled
-              ? ""
-              : "mt-3 rounded-2xl border border-white/15 bg-black/25 px-3 shadow-2xl backdrop-blur-xl sm:px-5"
+            ""
           }`}
         >
           {/* Logo */}
@@ -192,7 +186,7 @@ export function PublicHeader() {
           >
             <span
               className={`flex h-10 min-w-[54px] max-w-[150px] items-center justify-center overflow-hidden rounded-xl px-1.5 ${
-                scrolled ? "bg-[var(--canvas-alt)]" : "bg-white"
+                "bg-[var(--accent)]"
               }`}
             >
               {site.logo ? (
@@ -202,13 +196,13 @@ export function PublicHeader() {
                   className="max-h-8 w-auto max-w-[138px] object-contain"
                 />
               ) : (
-                <span className="text-sm font-black tracking-tight text-[var(--accent-deep)]">
+                <span className="text-sm font-black tracking-tight text-[var(--ink)]">
                   IH
                 </span>
               )}
             </span>
             <span
-              className={`hidden sm:block ${scrolled ? "text-[var(--ink)]" : "text-white"}`}
+              className={`hidden sm:block ${"text-[var(--ink)]"}`}
             >
               <strong
                 className="block max-w-[150px] truncate text-sm font-semibold tracking-tight"
@@ -241,8 +235,8 @@ export function PublicHeader() {
                     aria-expanded={activeMenu === id}
                     onMouseEnter={() => setMenu(id)}
                     onClick={() => setMenu((m) => (m === id ? null : id))}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-white transition-colors ${
-                      activeMenu === id ? "bg-white/20" : "hover:bg-white/10"
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors ${
+                      activeMenu === id ? "bg-[var(--accent-tint)]" : "hover:bg-[var(--canvas-alt)]"
                     }`}
                   >
                     {label}
@@ -262,7 +256,7 @@ export function PublicHeader() {
             <Link
               href={`/${locale}/contact`}
               onClick={closeMenus}
-              className={`hidden rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${scrolled ? "text-[var(--ink)] hover:bg-[var(--canvas-alt)]" : "text-white hover:bg-white/10"}`}
+              className={`hidden rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${"text-[var(--ink)] hover:bg-[var(--canvas-alt)]"}`}
             >
               Contact
             </Link>
@@ -277,7 +271,7 @@ export function PublicHeader() {
             >
               <Search size={17} aria-hidden="true" />
             </button>
-            <GoogleTranslateWidget tone={scrolled ? "solid" : "glass"} />
+            <GoogleTranslateWidget tone="solid" />
             <button
               type="button"
               aria-label="Menu"
@@ -436,7 +430,7 @@ export function PublicHeader() {
                                   </div>
                                 )}
                                 {activePromotion(o) && (
-                                  <span className="absolute start-2 top-2 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-white">
+                                  <span className="absolute start-2 top-2 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-[var(--on-accent)]">
                                     Promo
                                   </span>
                                 )}

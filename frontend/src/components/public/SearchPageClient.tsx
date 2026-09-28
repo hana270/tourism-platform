@@ -44,12 +44,12 @@ export default function SearchPageClient() {
   const selectedCategory=useMemo(()=>categories.find(c=>c.id===category),[categories,category]);
 
   return <main className="public-shell min-h-screen">
-    <div className="min-h-[360px] bg-slate-950">
+    <div className="min-h-[360px] bg-[var(--accent-tint)]">
       <div className="relative mx-auto max-w-[1400px]"><PublicHeader/>
         <div className="px-4 pb-12 pt-36 sm:px-8">
-          <p className="text-[11px] font-bold uppercase tracking-[.2em] text-white/40">Explorer la Tunisie</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">Trouvez votre prochaine expérience</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-white/60">Les offres sont filtrées automatiquement selon les disponibilités gérées par l’administrateur.</p>
+          <p className="text-[11px] font-bold text-[var(--accent-deep)]">Explorer la Tunisie</p>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[var(--ink)] sm:text-5xl">Trouvez votre prochaine expérience</h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--ink-soft)]">Les offres sont filtrées automatiquement selon les disponibilités gérées par l’administrateur.</p>
           <form onSubmit={submit} className="mt-8 rounded-3xl bg-white p-3 shadow-2xl">
             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-6">
               <input value={text} onChange={e=>setText(e.target.value)} placeholder="Rechercher un lieu, hôtel ou activité" className="h-12 rounded-xl bg-slate-50 px-3 text-sm font-semibold outline-none lg:col-span-2"/>
@@ -58,7 +58,7 @@ export default function SearchPageClient() {
               <input type="date" value={start} onChange={e=>setStart(e.target.value)} className="h-12 rounded-xl bg-slate-50 px-3 text-sm font-semibold outline-none"/>
               <input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="h-12 rounded-xl bg-slate-50 px-3 text-sm font-semibold outline-none"/>
               <input type="number" min="1" value={guests} onChange={e=>setGuests(Number(e.target.value)||1)} placeholder="Voyageurs" className="h-12 rounded-xl bg-slate-50 px-3 text-sm font-semibold outline-none"/>
-              <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800"><Search size={17}/> Rechercher</button>
+              <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] text-sm font-bold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"><Search size={17}/> Rechercher</button>
             </div>
             <div className="mt-2 flex items-center gap-2 px-1 text-[11px] text-slate-400"><Filter size={13}/> Budget maximum <input value={maxPrice} onChange={e=>setMaxPrice(e.target.value)} type="number" min="0" placeholder="TND" className="w-24 rounded-lg bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 outline-none"/>{selectedCategory&&<span className="ml-auto">{selectedCategory.name}</span>}</div>
           </form>

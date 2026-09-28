@@ -51,7 +51,7 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.15em] text-[var(--accent)]">{offer.category?.name}</p>
+            <p className="mb-1 text-xs font-semibold text-[var(--accent-deep)]">{offer.category?.name}</p>
             <Link href={`/${locale}/offers/${offer.slug}`} className="line-clamp-2 text-lg font-semibold tracking-tight text-[var(--ink)] transition-colors hover:text-[var(--accent-deep)]" style={{ fontFamily: 'var(--font-display)' }}>
               {offer.name}
             </Link>
@@ -84,7 +84,7 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
             {offer.isHotel && lowestHotel && <span className="mt-0.5 block text-[10px] text-[var(--ink-soft)]">Logement seul · autres formules disponibles</span>}
           </div>
           {onReserve && (
-            <button type="button" onClick={() => onReserve(offer)} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-xs font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[var(--accent-deep)] hover:shadow-lg">
+            <button type="button" onClick={() => onReserve(offer)} className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-xs font-bold text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]">
               Réserver
             </button>
           )}

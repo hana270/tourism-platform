@@ -105,21 +105,21 @@ export default function OffersPage() {
         <div className="card p-10 text-center text-danger">{error}</div>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
-            <thead className="border-b border-border bg-surface-alt text-xs uppercase tracking-wide text-ink-faint">
+          <table className="data-table has-actions">
+            <thead>
               <tr>
-                <th className="px-5 py-3">{t('table.name')}</th>
-                <th className="px-5 py-3">{t('table.category')}</th>
-                <th className="px-5 py-3">{t('table.zone')}</th>
-                <th className="px-5 py-3">{t('table.price')}</th>
-                <th className="px-5 py-3">{t('table.status')}</th>
-                <th className="px-5 py-3 text-right">{t('table.actions')}</th>
+                <th>{t('table.name')}</th>
+                <th>{t('table.category')}</th>
+                <th>{t('table.zone')}</th>
+                <th>{t('table.price')}</th>
+                <th>{t('table.status')}</th>
+                <th>{t('table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((offer) => (
                 <tr key={offer.id} className="hover:bg-surface-alt/60">
-                  <td className="px-5 py-4">
+                  <td>
                     <div className="font-medium text-ink">{displayName(offer)}</div>
                     {offer.isHotel && (
                       <div className="mt-1 flex items-center gap-2 text-xs text-ink-faint">
@@ -133,14 +133,14 @@ export default function OffersPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-ink-soft">{offer.category?.name ?? categories.find((c) => c.id === offer.categoryId)?.name ?? '—'}</td>
-                  <td className="px-5 py-4 text-ink-soft">{offer.zone?.name ?? '—'}</td>
-                  <td className="px-5 py-4 font-medium text-ink">
+                  <td className="text-ink-soft">{offer.category?.name ?? categories.find((c) => c.id === offer.categoryId)?.name ?? '—'}</td>
+                  <td className="text-ink-soft">{offer.zone?.name ?? '—'}</td>
+                  <td className="font-medium text-ink">
                     {offer.isHotel && <span className="mr-1 text-xs font-normal text-ink-faint">{t('from')}</span>}
                     {formatMoney(Number(offer.isHotel ? offer.simplePrice ?? offer.price : offer.price), 'TND', moneyLocale)}
                   </td>
-                  <td className="px-5 py-4"><span className="rounded-full border border-border px-2 py-1 text-xs">{statusLabel(offer.status)}</span></td>
-                  <td className="px-5 py-4">
+                  <td><span className="rounded-full border border-border px-2 py-1 text-xs">{statusLabel(offer.status)}</span></td>
+                  <td>
                     <div className="flex justify-end gap-2">
                       <Link className="btn-icon h-8 w-8" href={`/${locale}/dashboard/offers/${offer.id}`}><Eye size={15} /></Link>
                       <button className="btn-icon h-8 w-8" onClick={() => { setEditing(offer); setOpen(true); }}><Pencil size={15} /></button>
