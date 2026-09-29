@@ -392,3 +392,19 @@ body { top: 0 !important; }
 .chip-row { display: flex; gap: .625rem; overflow-x: auto; scrollbar-width: none; padding-bottom: .25rem; }
 .chip-row::-webkit-scrollbar { display: none; }
 .public-shell :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+
+/* === Animations d'apparition au défilement (progressives, sans JS) === */
+@keyframes reveal-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@supports (animation-timeline: view()) {
+  .public-shell main > section:not(:first-of-type),
+  .public-shell > section:not(:first-of-type) {
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+.public-card, .btn-yellow { will-change: transform; }
+@media (max-width: 640px) {
+  .public-container { width: calc(100% - 24px); }
+}

@@ -13,7 +13,7 @@ export const api = axios.create({
   baseURL: `${API_ORIGIN}/api/v1`,
   headers: { Accept: 'application/json' },
   withCredentials: true,
-  timeout: 8_000,
+  timeout: 20_000,
 });
 
 // Les envois de fichiers (images) sont plus longs qu'une requête classique :
@@ -26,6 +26,20 @@ api.interceptors.request.use((config) => {
     config.maxContentLength = Infinity;
   }
   return config;
+});
+
+// Nouvel essai automatique (une fois) pour les lectures en cas de lenteur / coupure réseau.
+type RetriableConfig = { __retried?: boolean; method?: string };
+api.interceptors.response.use(undefined, async (error) => {
+  const config = error?.config as (RetriableConfig & Record<string, unknown>) | undefined;
+  const isGet = (config?.method ?? 'get').toLowerCase() === 'get';
+  const transient = !error?.response || error.response.status >= 502;
+  if (config && isGet && transient && !config.__retried) {
+    config.__retried = true;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    return api(config as never);
+  }
+  return Promise.reject(error);
 });
 
 export function imageUrl(path: string | null | undefined): string {

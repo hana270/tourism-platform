@@ -11,6 +11,7 @@ import {
   MapPin,
   Tag,
 } from 'lucide-react';
+import axios from 'axios';
 import { Offer } from '@/types/offer';
 import { ReservationsApi } from '@/lib/reservations.api';
 import { SiteSettingsApi } from '@/lib/site-settings.api';
@@ -26,31 +27,13 @@ function normalizeWhatsAppNumber(value: string | null | undefined): string {
   return digits;
 }
 
-function buildWhatsAppUrl(number: string, message: string): string {
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-}
-
-function buildWhatsAppAppUrl(number: string, message: string): string {
-  return `whatsapp://send?phone=${number}&text=${encodeURIComponent(message)}`;
-}
-
-function isMobileDevice() {
-  return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
-}
-
+/**
+ * Lien universel wa.me : ouvre l'application WhatsApp sur Android et iPhone,
+ * et WhatsApp Desktop / WhatsApp Web sur ordinateur, avec le message pré-rempli.
+ * (Le schéma whatsapp:// et web.whatsapp.com ne sont pas fiables selon l'appareil.)
+ */
 function openWhatsApp(number: string, message: string) {
-  const webUrl = buildWhatsAppUrl(number, message);
-  if (!isMobileDevice()) {
-    window.location.assign(`https://web.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(message)}`);
-    return;
-  }
-
-  // Le schéma whatsapp:// demande l'ouverture de l'application native.
-  // Si elle n'est pas installée, on bascule automatiquement vers WhatsApp Web.
-  const fallback = window.setTimeout(() => window.location.assign(webUrl), 1400);
-  const cancelFallback = () => window.clearTimeout(fallback);
-  document.addEventListener('visibilitychange', cancelFallback, { once: true });
-  window.location.assign(buildWhatsAppAppUrl(number, message));
+  window.location.href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
 function formatOfferPrice(offer: Offer) {
@@ -119,6 +102,9 @@ export function BookingModal({
     setError('');
     setLoading(true);
 
+    // 1) Enregistrement de la demande. Si le serveur est lent ou injoignable,
+    //    le client n'est pas bloqué : la demande part quand même sur WhatsApp.
+    let reservationId = '';
     try {
       const reservation = await ReservationsApi.create({
         offerId: selectedOffer.id,
@@ -130,54 +116,57 @@ export function BookingModal({
         guests: people,
         notes: notes.trim() || undefined,
       });
-
-      const configuredNumber = await SiteSettingsApi.contact()
-        .then((settings) => normalizeWhatsAppNumber(settings.whatsappNumero))
-        .catch(() => '');
-      const whatsappNumber = configuredNumber || normalizeWhatsAppNumber(contactPhone) || DEFAULT_WHATSAPP_NUMBER;
-      const reservationId = typeof reservation === 'object' && reservation && 'id' in reservation
-        ? String((reservation as { id: string }).id)
-        : '';
-      const typeLabel = selectedOffer.isHotel ? 'hôtel' : 'offre';
-      const details = [
-        selectedOffer.category?.name ? `Catégorie : ${selectedOffer.category.name}` : '',
-        selectedOffer.zone?.name ? `Zone : ${selectedOffer.zone.name}` : '',
-        selectedOffer.address ? `Adresse : ${selectedOffer.address}` : '',
-        selectedOffer.capacity ? `Capacité : ${selectedOffer.capacity} personnes` : '',
-        `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
-        ...(selectedOffer.customFields ?? []).map((field) => `${field.fieldName} : ${field.value}`),
-      ].filter(Boolean);
-      const message = [
-        selectedOffer.isHotel
-          ? `Bonjour, je souhaite réserver cet hôtel sur IHOST.`
-          : `Bonjour, je souhaite réserver cette offre sur IHOST.`,
-        '',
-        'DÉTAILS DE LA RÉSERVATION',
-        reservationId ? `Référence : ${reservationId}` : '',
-        `Nom de l’offre : ${selectedOffer.name}`,
-        `Type : ${typeLabel}`,
-        ...details,
-        '',
-        'COORDONNÉES DU CLIENT',
-        `Nom complet : ${name.trim()}`,
-        `Téléphone : ${phone.trim()}`,
-        email.trim() ? `E-mail : ${email.trim()}` : '',
-        `Dates souhaitées : du ${from} au ${to}`,
-        `Nombre de personnes : ${people}`,
-        notes.trim() ? `Message : ${notes.trim()}` : '',
-        '',
-        selectedOffer.isHotel
-          ? 'Merci de bien vouloir vérifier la disponibilité de cet hôtel pour ma réservation et me confirmer les modalités.'
-          : `Je souhaite réserver cette offre pour la période du ${from} au ${to}. Merci de me confirmer la prise en compte de ma demande.`,
-      ].filter(Boolean).join('\n');
-
-      openWhatsApp(whatsappNumber, message);
-      onClose();
+      reservationId =
+        typeof reservation === 'object' && reservation && 'id' in reservation
+          ? String((reservation as { id: string }).id)
+          : '';
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Impossible d’enregistrer la demande de réservation.');
-    } finally {
-      setLoading(false);
+      const refused = axios.isAxiosError(exception) && !!exception.response && exception.response.status < 500;
+      if (refused) {
+        setError(exception instanceof Error ? exception.message : 'Impossible d’enregistrer la demande de réservation.');
+        setLoading(false);
+        return;
+      }
     }
+
+    // 2) Message WhatsApp complet : offre + client.
+    const whatsappNumber = normalizeWhatsAppNumber(contactPhone) || DEFAULT_WHATSAPP_NUMBER;
+    const typeLabel = selectedOffer.isHotel ? 'hôtel' : selectedOffer.category?.name || 'offre';
+    const details = [
+      selectedOffer.category?.name ? `Catégorie : ${selectedOffer.category.name}` : '',
+      selectedOffer.zone?.name ? `Zone : ${selectedOffer.zone.name}` : '',
+      selectedOffer.address ? `Adresse : ${selectedOffer.address}` : '',
+      selectedOffer.isHotel && selectedOffer.stars ? `Étoiles : ${selectedOffer.stars}` : '',
+      selectedOffer.capacity ? `Capacité : ${selectedOffer.capacity} personnes` : '',
+      `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
+      ...(selectedOffer.customFields ?? []).map((field) => `${field.fieldName} : ${field.value}`),
+      typeof window !== 'undefined' ? `Lien : ${window.location.origin}/${document.documentElement.lang || 'fr'}/offers/${selectedOffer.slug}` : '',
+    ].filter(Boolean);
+    const message = [
+      selectedOffer.isHotel
+        ? 'Bonjour, je souhaite réserver cet hôtel sur IHOST.'
+        : `Bonjour, je souhaite réserver ce bien (${typeLabel}) sur IHOST.`,
+      '',
+      '*DÉTAILS DE L’OFFRE*',
+      reservationId ? `Référence : ${reservationId}` : '',
+      `Nom : ${selectedOffer.name}`,
+      `Type : ${typeLabel}`,
+      ...details,
+      '',
+      '*MES COORDONNÉES*',
+      `Nom complet : ${name.trim()}`,
+      `Téléphone : ${phone.trim()}`,
+      email.trim() ? `E-mail : ${email.trim()}` : '',
+      `Dates : du ${from} au ${to}`,
+      `Voyageurs : ${people}`,
+      notes.trim() ? `Message : ${notes.trim()}` : '',
+      '',
+      'Merci de me confirmer la disponibilité et les modalités de réservation.',
+    ].filter(Boolean).join('\n');
+
+    setLoading(false);
+    onClose();
+    openWhatsApp(whatsappNumber, message);
   }
 
   return (

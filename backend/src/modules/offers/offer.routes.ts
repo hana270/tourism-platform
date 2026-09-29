@@ -238,8 +238,20 @@ async function translatedFields(input: OfferInput) {
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
+    // Offres publiques : on masque celles dont les dates sont bloquées
+    // (réservation confirmée + payée) pour la période demandée, ou aujourd'hui.
+    const isPublic = req.query.status === "PUBLISHED";
+    const s = req.query.startDate ? new Date(String(req.query.startDate)) : null;
+    const e = req.query.endDate ? new Date(String(req.query.endDate)) : null;
+    const hasRange = !!s && !!e && !isNaN(+s) && !isNaN(+e) && e > s;
+    const from = hasRange ? s! : new Date();
+    const to = hasRange ? e! : new Date(from.getTime() + 1);
+    if (isPublic) res.setHeader("Cache-Control", "public, max-age=15, stale-while-revalidate=60");
     const offers = await prisma.offer.findMany({
       where: {
+        ...(isPublic
+          ? { NOT: { availabilityBlocks: { some: { startDate: { lt: to }, endDate: { gt: from } } } } }
+          : {}),
         ...(req.query.status
           ? { status: String(req.query.status) as OfferStatus }
           : {}),

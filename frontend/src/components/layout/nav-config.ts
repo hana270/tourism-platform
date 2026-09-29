@@ -3,7 +3,6 @@ import {
   FolderTree,
   MapPin,
   Tag,
-  CalendarClock,
   ClipboardList,
   BadgePercent,
   Phone,
@@ -17,7 +16,6 @@ export type NavKey =
   | 'categories'
   | 'zones'
   | 'offers'
-  | 'availability'
   | 'bookings'
   | 'promotions'
   | 'settingsContact'
@@ -42,7 +40,6 @@ export const navItems: NavItem[] = [
   { key: 'zones', href: '/dashboard/zones', icon: MapPin, enabled: true, section: 'catalog' },
   { key: 'offers', href: '/dashboard/offers', icon: Tag, enabled: true, section: 'catalog' },
   { key: 'bookings', href: '/dashboard/bookings', icon: ClipboardList, enabled: true, section: 'operations' },
-  { key: 'availability', href: '/dashboard/availability', icon: CalendarClock, enabled: true, section: 'operations' },
   { key: 'promotions', href: '/dashboard/promotions', icon: BadgePercent, enabled: true, section: 'operations' },
   { key: 'settingsContact', href: '/dashboard/settings/contact', icon: Phone, enabled: true, section: 'settings' },
   { key: 'settingsHome', href: '/dashboard/settings/homepage', icon: Home, enabled: true, section: 'settings' },

@@ -12,11 +12,17 @@ const money = z.coerce.number().finite().nonnegative().max(999999999);
 const promotionFields = z.object({ offerId: z.string().min(1), oldPrice: money, newPrice: money, startDate: z.coerce.date(), endDate: z.coerce.date(), status: z.nativeEnum(PromotionStatus).default(PromotionStatus.ACTIVE), showOnHomepage: z.coerce.boolean().default(false) });
 const inputSchema = promotionFields.superRefine((v, ctx) => { if (v.endDate <= v.startDate) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'La date de fin doit être postérieure à la date de début.' }); if (v.newPrice >= v.oldPrice) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['newPrice'], message: 'Le prix promotionnel doit être inférieur à l’ancien prix.' }); });
 
-async function expirePast() { await prisma.promotion.updateMany({ where: { status: 'ACTIVE', endDate: { lt: new Date() } }, data: { status: 'EXPIRED' } }); }
+let lastExpire = 0;
+// Marque les promotions échues, au plus une fois toutes les 5 minutes (évite une écriture à chaque lecture).
+async function expirePast() {
+  if (Date.now() - lastExpire < 5 * 60 * 1000) return;
+  lastExpire = Date.now();
+  await prisma.promotion.updateMany({ where: { status: 'ACTIVE', endDate: { lt: new Date() } }, data: { status: 'EXPIRED' } }).catch(() => undefined);
+}
 
 router.get('/', requireAuth, requireRole('ADMIN', 'STAFF'), asyncHandler(async (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store');
-  await expirePast();
+  void expirePast();
   const rows = await prisma.promotion.findMany({ include: { offer: { select: { id: true, name: true, price: true } } }, orderBy: { startDate: 'desc' }, take: 200 });
   res.json({ success: true, data: rows });
 }));

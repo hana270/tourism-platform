@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { ReservationStatus, PaymentStatus } from "@prisma/client";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { prisma } from "@/config/prisma";
 import { requireAuth, requireRole } from "@/middlewares/auth";
 import { asyncHandler } from "@/utils/asyncHandler";
@@ -9,6 +10,13 @@ import { audit } from "@/lib/audit";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 
 const router = Router();
+const createLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Trop de demandes. Réessayez dans quelques minutes." },
+});
 const date = z.coerce.date();
 const createSchema = z
   .object({
@@ -57,6 +65,7 @@ router.get(
 
 router.post(
   "/",
+  createLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const input = createSchema.parse(req.body);
     const offer = await prisma.offer.findUnique({
@@ -66,7 +75,7 @@ router.post(
     if (!offer) throw ApiError.notFound("Offre introuvable.");
     const startDate = input.startDate;
     const endDate = input.endDate;
-    if (!offer.availabilityOnDemand) {
+    {
       const overlap = await prisma.availabilityBlock.findFirst({
         where: {
           offerId: input.offerId,
@@ -142,30 +151,46 @@ router.patch(
     });
     if (!existing)
       throw ApiError.notFound("Demande de réservation introuvable.");
+    // Blocage automatique : les dates sont bloquées dès que la réservation est
+    // CONFIRMÉE et PAYÉE, et libérées si l'une des deux conditions disparaît.
     const row = await prisma.$transaction(async (tx) => {
       const updated = await tx.reservation.update({
         where: { id: existing.id },
         data: input,
       });
-      if (
-        input.status === "CONFIRMED" &&
-        existing.status !== "CONFIRMED" &&
-        existing.startDate &&
-        existing.endDate
-      ) {
-        const offer = await tx.offer.findUnique({
-          where: { id: existing.offerId },
-          select: { availabilityOnDemand: true },
+      const mustBlock =
+        updated.status === "CONFIRMED" &&
+        updated.paymentStatus === "PAID" &&
+        !!updated.startDate &&
+        !!updated.endDate;
+      const current = await tx.availabilityBlock.findFirst({
+        where: { reservationId: updated.id },
+        select: { id: true },
+      });
+      if (mustBlock && !current) {
+        const overlap = await tx.availabilityBlock.findFirst({
+          where: {
+            offerId: updated.offerId,
+            startDate: { lt: updated.endDate! },
+            endDate: { gt: updated.startDate! },
+          },
         });
-        if (offer && !offer.availabilityOnDemand)
-          await tx.availabilityBlock.create({
-            data: {
-              offerId: existing.offerId,
-              startDate: existing.startDate,
-              endDate: existing.endDate,
-              reservationId: existing.id,
-            },
-          });
+        if (overlap)
+          throw ApiError.conflict(
+            "Ces dates sont déjà bloquées par une autre réservation confirmée et payée.",
+          );
+        await tx.availabilityBlock.create({
+          data: {
+            offerId: updated.offerId,
+            startDate: updated.startDate!,
+            endDate: updated.endDate!,
+            reservationId: updated.id,
+          },
+        });
+      } else if (!mustBlock && current) {
+        await tx.availabilityBlock.deleteMany({
+          where: { reservationId: updated.id },
+        });
       }
       return updated;
     });
