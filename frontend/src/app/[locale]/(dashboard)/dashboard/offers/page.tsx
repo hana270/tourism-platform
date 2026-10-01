@@ -104,8 +104,8 @@ export default function OffersPage() {
       ) : error ? (
         <div className="card p-10 text-center text-danger">{error}</div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="data-table has-actions">
+        <div className="card overflow-hidden">
+          <table className="data-table has-actions min-w-[820px]">
             <thead>
               <tr>
                 <th>{t('table.name')}</th>
@@ -118,7 +118,7 @@ export default function OffersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((offer) => (
-                <tr key={offer.id} className="hover:bg-surface-alt/60">
+                <tr key={offer.id} className="transition-colors hover:bg-surface-alt/60">
                   <td>
                     <div className="font-medium text-ink">{displayName(offer)}</div>
                     {offer.isHotel && (
@@ -139,7 +139,7 @@ export default function OffersPage() {
                     {offer.isHotel && <span className="mr-1 text-xs font-normal text-ink-faint">{t('from')}</span>}
                     {formatMoney(Number(offer.isHotel ? offer.simplePrice ?? offer.price : offer.price), 'TND', moneyLocale)}
                   </td>
-                  <td><span className="rounded-full border border-border px-2 py-1 text-xs">{statusLabel(offer.status)}</span></td>
+                  <td><span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${offer.status === "PUBLISHED" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{statusLabel(offer.status)}</span></td>
                   <td>
                     <div className="flex justify-end gap-2">
                       <Link className="btn-icon h-8 w-8" href={`/${locale}/dashboard/offers/${offer.id}`}><Eye size={15} /></Link>

@@ -134,8 +134,7 @@ export const catalog: Messages = {
     "analytics": {
       "title": "Répartition des offres",
       "published": "Publiées",
-      "draft": "Brouillons",
-      "archived": "Archivées",
+            "archived": "Archivées",
       "health": "Pilotage rapide",
       "healthText": "Les indicateurs sont actualisés automatiquement toutes les 15 secondes.",
       "manageOffers": "Gérer les offres"
@@ -243,8 +242,7 @@ export const catalog: Messages = {
     "refresh": "Actualiser",
     "published": "Publiée",
     "archived": "Archivée",
-    "draft": "Brouillon",
-    "hotel": "Hôtel",
+        "hotel": "Hôtel",
     "from": "À partir de",
     "empty": "Aucune offre trouvée.",
     "loadError": "Impossible de charger les offres.",

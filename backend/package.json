@@ -15,6 +15,7 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:reset-data": "tsx scripts/reset-data.ts",
+    "db:reset-all": "tsx scripts/reset-data.ts --all",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "echo \"Add Vitest/Supertest integration tests before production\""

@@ -2,7 +2,7 @@ import { api, ApiEnvelope } from './api';
 
 export type Reservation = { id: string; offerId: string; customerName: string; customerPhone: string; customerEmail?: string | null; startDate?: string | null; endDate?: string | null; guests: number; status: string; paymentStatus: string; adminNotes?: string | null; notes?: string | null; createdAt?: string; offer?: { name: string } };
 export type AvailabilityBlock = { id: string; offerId: string; startDate: string; endDate: string; offer?: { name: string; isHotel?: boolean }; reservation?: { id: string; customerName: string; customerPhone?: string; status: string; paymentStatus: string } | null };
-export type Promotion = { id: string; offerId: string; oldPrice: number; newPrice: number; startDate: string; endDate: string; status: string; showOnHomepage: boolean; offer?: { name: string } };
+export type Promotion = { id: string; offerId: string; priceType: "BASE" | "SIMPLE" | "HALF_BOARD" | "FULL_BOARD" | "ALL_INCLUSIVE"; oldPrice: number; newPrice: number; startDate: string; endDate: string; status: string; showOnHomepage: boolean; offer?: { name: string } };
 
 export const OperationsApi = {
   async reservations(status?: string) { const { data } = await api.get<ApiEnvelope<Reservation[]>>('/reservations', { params: status ? { status } : undefined }); return data.data; },

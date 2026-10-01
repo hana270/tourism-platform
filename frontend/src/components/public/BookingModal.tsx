@@ -139,13 +139,17 @@ export function BookingModal({
       selectedOffer.isHotel && selectedOffer.stars ? `Étoiles : ${selectedOffer.stars}` : '',
       selectedOffer.capacity ? `Capacité : ${selectedOffer.capacity} personnes` : '',
       `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
+      ...(selectedOffer.isHotel ? [
+        selectedOffer.simplePrice != null ? `Logement seul : ${Number(selectedOffer.simplePrice).toFixed(2)} TND` : '',
+        selectedOffer.halfBoardPrice != null ? `Demi-pension : ${Number(selectedOffer.halfBoardPrice).toFixed(2)} TND` : '',
+        selectedOffer.fullBoardPrice != null ? `Pension complète : ${Number(selectedOffer.fullBoardPrice).toFixed(2)} TND` : '',
+        selectedOffer.allInclusivePrice != null ? `All Inclusive : ${Number(selectedOffer.allInclusivePrice).toFixed(2)} TND` : '',
+      ].filter(Boolean) : []),
       ...(selectedOffer.customFields ?? []).map((field) => `${field.fieldName} : ${field.value}`),
       typeof window !== 'undefined' ? `Lien : ${window.location.origin}/${document.documentElement.lang || 'fr'}/offers/${selectedOffer.slug}` : '',
     ].filter(Boolean);
     const message = [
-      selectedOffer.isHotel
-        ? 'Bonjour, je souhaite réserver cet hôtel sur IHOST.'
-        : `Bonjour, je souhaite réserver ce bien (${typeLabel}) sur IHOST.`,
+      `Bonjour, je souhaite effectuer une demande de réservation via IHOST.`,
       '',
       '*DÉTAILS DE L’OFFRE*',
       reservationId ? `Référence : ${reservationId}` : '',
@@ -161,9 +165,7 @@ export function BookingModal({
       `Voyageurs : ${people}`,
       notes.trim() ? `Message : ${notes.trim()}` : '',
       '',
-      selectedOffer.isHotel
-        ? 'Merci de bien vouloir vérifier la disponibilité de cet hôtel pour ma réservation et me confirmer les modalités.'
-        : `Je souhaite réserver cette offre pour la période du ${from} au ${to}. Merci de confirmer la prise en compte de ma demande.`,
+      `Merci de vérifier la disponibilité de cette offre pour la période indiquée et de me confirmer les modalités de réservation.`,
     ].filter(Boolean).join('\n');
 
     setLoading(false);

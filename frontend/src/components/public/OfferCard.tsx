@@ -24,6 +24,7 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
   const photo = offer.photos.find((p) => p.isPrimary) ?? offer.photos[0];
   const promotion = activePromotion(offer);
   const lowestHotel = hotelPrice(offer);
+  const promotionLabel = promotion?.priceType === "HALF_BOARD" ? "Demi-pension" : promotion?.priceType === "FULL_BOARD" ? "Pension complète" : promotion?.priceType === "ALL_INCLUSIVE" ? "All Inclusive" : promotion?.priceType === "SIMPLE" ? "Logement seul" : "Tarif de base";
   const price = offer.isHotel ? lowestHotel?.[1] : offer.price;
 
   return (
@@ -36,13 +37,13 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
         )}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
           <span className={`rounded-full px-3 py-1.5 text-[11px] font-bold backdrop-blur-md ${offer.isHotel ? 'bg-white/90 text-[var(--ink)]' : 'bg-[var(--accent-tint)]/95 text-[var(--accent-deep)]'}`}>
-            {offer.isHotel ? 'Sur demande' : 'Disponible'}
+            {offer.isHotel ? 'Disponibilité à confirmer' : 'Disponible'}
           </span>
           {promotion && <span className="rounded-full bg-[var(--ink)]/90 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm">Offre spéciale</span>}
         </div>
         {promotion && (
           <div className="absolute bottom-3 start-3 rounded-xl bg-[var(--ink)]/90 px-3 py-2 text-white backdrop-blur-md">
-            <span className="text-[10px] text-white/60">Promotion</span>
+            <span className="text-[10px] text-white/60">{promotionLabel}</span>
             <div className="text-sm font-bold">{Number(promotion.newPrice).toFixed(0)} TND</div>
           </div>
         )}
@@ -82,6 +83,7 @@ export function OfferCard({ offer, onReserve, locale = 'fr' }: { offer: Offer; o
               <strong className="text-sm font-bold text-[var(--ink-soft)]">Prix sur demande</strong>
             )}
             {offer.isHotel && lowestHotel && <span className="mt-0.5 block text-[10px] text-[var(--ink-soft)]">Logement seul · autres formules disponibles</span>}
+            {promotion && <span className="mt-1 block text-[10px] font-semibold text-emerald-700">{promotionLabel} · valable jusqu’au {new Date(promotion.endDate).toLocaleDateString(locale === 'fr' ? 'fr-TN' : 'en-TN')}</span>}
           </div>
           {onReserve && (
             <button type="button" onClick={() => onReserve(offer)} className="rounded-full bg-[var(--accent)] px-4 py-2.5 text-xs font-bold text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]">

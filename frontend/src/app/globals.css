@@ -422,3 +422,14 @@ body { top: 0 !important; }
     display: none;
   }
 }
+
+
+/* V11 visual system: premium motion without hurting accessibility */
+.logo-transparent { background: transparent !important; box-shadow: none !important; border: 0 !important; }
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 640px) {
+  .data-table th, .data-table td { padding-left: .75rem; padding-right: .75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

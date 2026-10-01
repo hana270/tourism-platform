@@ -184,14 +184,12 @@ export function PublicHeader() {
             className="notranslate flex min-w-0 shrink-0 items-center gap-3"
             onClick={closeMenus}
           >
-            <span
-              className="flex h-10 min-w-[54px] max-w-[150px] items-center justify-center overflow-hidden px-1.5"
-            >
+            <span className="flex h-11 max-w-[148px] items-center justify-center overflow-hidden bg-transparent p-0">
               {site.logo ? (
                 <img
                   src={imageUrl(site.logo)}
                   alt={site.nomSite}
-                  className="max-h-8 w-auto max-w-[138px] object-contain"
+                  className="block max-h-10 w-auto max-w-[148px] object-contain"
                 />
               ) : (
                 <span className="text-sm font-black tracking-tight text-[var(--ink)]">
@@ -199,9 +197,7 @@ export function PublicHeader() {
                 </span>
               )}
             </span>
-            <span
-              className={`hidden sm:block ${"text-[var(--ink)]"}`}
-            >
+            <span className="hidden text-[var(--ink)] sm:block">
               <strong
                 className="block max-w-[150px] truncate text-sm font-semibold tracking-tight"
                 style={{ fontFamily: "var(--font-display)" }}
@@ -250,35 +246,12 @@ export function PublicHeader() {
           </div>
 
           {/* Droite : recherche mobile, traduction, menu mobile */}
-          <div className="ms-auto flex items-center gap-2">
-            <Link
-              href={`/${locale}/contact`}
-              onClick={closeMenus}
-              className={`hidden rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${"text-[var(--ink)] hover:bg-[var(--canvas-alt)]"}`}
-            >
-              Contact
-            </Link>
-            <button
-              type="button"
-              aria-label="Rechercher"
-              aria-expanded={mobilePanel === "search"}
-              onClick={() =>
-                setMobilePanel((p) => (p === "search" ? null : "search"))
-              }
-              className={`flex h-10 w-10 items-center justify-center rounded-full border lg:hidden ${ghost}`}
-            >
-              <Search size={17} aria-hidden="true" />
-            </button>
+          <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
+            <Link href={`/${locale}/search`} onClick={closeMenus} className="hidden rounded-full px-3 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--canvas-alt)] lg:inline-flex">Explorer</Link>
+            <Link href={`/${locale}/contact`} onClick={closeMenus} className="hidden rounded-full px-3 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--canvas-alt)] lg:inline-flex">Contact</Link>
+            <button type="button" aria-label="Rechercher" aria-expanded={mobilePanel === "search"} onClick={()=>setMobilePanel(p=>p==='search'?null:'search')} className={`flex h-9 w-9 items-center justify-center rounded-full border bg-white/90 lg:hidden ${ghost}`}><Search size={16}/></button>
             <GoogleTranslateWidget tone="solid" />
-            <button
-              type="button"
-              aria-label="Menu"
-              aria-expanded={mobilePanel === "menu"}
-              onClick={() => setMobilePanel("menu")}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border lg:hidden ${ghost}`}
-            >
-              <Menu size={18} aria-hidden="true" />
-            </button>
+            <button type="button" aria-label="Ouvrir le menu" aria-expanded={mobilePanel === "menu"} onClick={()=>setMobilePanel('menu')} className={`flex h-9 w-9 items-center justify-center rounded-full border bg-white/90 lg:hidden ${ghost}`}><Menu size={17}/></button>
           </div>
         </div>
 
@@ -477,7 +450,7 @@ export function PublicHeader() {
           onClick={() => setMobilePanel(null)}
         >
           <div
-            className="absolute inset-x-3 top-3 max-h-[calc(100%-24px)] overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl"
+            className="absolute inset-x-2 top-2 max-h-[calc(100%-16px)] overflow-y-auto rounded-[28px] bg-white p-5 shadow-2xl ring-1 ring-black/5"
             onClick={(e) => {
               e.stopPropagation();
               if ((e.target as HTMLElement).closest("a")) setMobilePanel(null);

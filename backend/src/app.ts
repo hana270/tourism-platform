@@ -23,8 +23,12 @@ export function createApp() {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false }));
   if (env.NODE_ENV === 'development') app.use(morgan('dev'));
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
-    maxAge: env.NODE_ENV === 'production' ? '7d' : 0,
+    maxAge: env.NODE_ENV === 'production' ? '30d' : 0,
     immutable: env.NODE_ENV === 'production',
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Disposition', 'inline');
+    },
   }));
   app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
   app.use('/api/v1', apiRoutes);

@@ -56,18 +56,31 @@ router.post(
     await fs.mkdir(dir, { recursive: true });
     const urls: string[] = [];
     for (const file of files) {
+      if (!file.buffer?.length) throw ApiError.badRequest("Fichier vide.");
       const source = sharp(file.buffer, { limitInputPixels: 80_000_000 });
       const metadata = await source.metadata().catch(() => null);
       if (!metadata || !["jpeg", "png", "webp", "heif"].includes(metadata.format ?? "")) {
         throw ApiError.badRequest("Fichier image invalide ou corrompu.");
       }
-      const filename = `${crypto.randomUUID()}.webp`;
-      await sharp(file.buffer, { limitInputPixels: 80_000_000 })
-        .rotate()
-        .resize(1600, 1200, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toFile(path.join(dir, filename));
-      urls.push(`/uploads/offers/${filename}`);
+      const fileId = crypto.randomUUID();
+      const variants = [
+        { suffix: "thumb", width: 480, quality: 68 },
+        { suffix: "medium", width: 960, quality: 76 },
+        { suffix: "large", width: 1600, quality: 82 },
+      ];
+      const generated: string[] = [];
+      for (const variant of variants) {
+        const filename = `${fileId}-${variant.suffix}.webp`;
+        await sharp(file.buffer, { limitInputPixels: 80_000_000 })
+          .rotate()
+          .resize(variant.width, 1200, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: variant.quality, effort: 4 })
+          .toFile(path.join(dir, filename));
+        generated.push(`/uploads/offers/${filename}`);
+      }
+      // La fiche conserve l'image medium. Les variantes restent disponibles pour
+      // les futures interfaces responsive et évitent de charger 1600px sur mobile.
+      urls.push(generated[1]);
     }
     res.status(201).json({ success: true, data: urls });
   }),
