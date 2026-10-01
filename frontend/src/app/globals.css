@@ -408,3 +408,17 @@ body { top: 0 !important; }
 @media (max-width: 640px) {
   .public-container { width: calc(100% - 24px); }
 }
+
+
+/* Navbar mobile : sélecteur de langue compact, sans débordement horizontal. */
+@media (max-width: 640px) {
+  .public-shell header .notranslate > button {
+    width: 40px;
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+  }
+  .public-shell header .notranslate > button > span {
+    display: none;
+  }
+}

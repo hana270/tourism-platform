@@ -53,7 +53,7 @@ export default function OffersPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [offers, status, query, locale]);
 
-  const statusLabel = (s: OfferStatus) => (s === 'PUBLISHED' ? t('published') : s === 'ARCHIVED' ? t('archived') : t('draft'));
+  const statusLabel = (s: OfferStatus) => s === 'PUBLISHED' ? t('published') : t('archived');
 
   async function save(values: OfferFormValues) {
     setSaving(true);

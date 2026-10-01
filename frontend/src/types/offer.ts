@@ -1,4 +1,4 @@
-export type OfferStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type OfferStatus = 'PUBLISHED' | 'ARCHIVED';
 
 export type Zone = {
   id: string;
@@ -57,7 +57,7 @@ export type OfferFormValues = {
   zoneId: string;
   name: string;
   description: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'PUBLISHED' | 'ARCHIVED';
   address: string;
   googleMapsUrl: string;
   isHotel: boolean;

@@ -55,8 +55,7 @@ export const CategoryService = {
     });
 
     if (files?.length) {
-      for (let i = 0; i < files.length; i++) {
-        const variants = await processCategoryImage(files[i].buffer, category.id);
+        const variants = await processCategoryImage(files[0].buffer, category.id);
         await prisma.categoryImage.create({
           data: {
             categoryId: category.id,
@@ -64,11 +63,10 @@ export const CategoryService = {
             thumbnailUrl: variants.thumbnailUrl,
             mediumUrl: variants.mediumUrl,
             largeUrl: variants.largeUrl,
-            displayOrder: i,
+            displayOrder: 0,
             altText: input.name,
           },
         });
-      }
     }
 
     return this.getById(category.id);
@@ -138,10 +136,7 @@ export const CategoryService = {
     // 4. Nouvelle couverture : elle devient la première image affichée.
     // Les autres images déjà présentes en base sont conservées pour une évolution future.
     if (newFiles?.length) {
-      await prisma.categoryImage.updateMany({
-        where: { categoryId: id },
-        data: { displayOrder: { increment: 1 } },
-      });
+      await prisma.categoryImage.deleteMany({ where: { categoryId: id } });
       const variants = await processCategoryImage(newFiles[0].buffer, id);
       await prisma.categoryImage.create({
         data: {

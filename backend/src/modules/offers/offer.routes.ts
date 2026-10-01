@@ -1,4 +1,5 @@
 import path from "path";
+import crypto from "crypto";
 import fs from "fs/promises";
 import { Router, Request, Response } from "express";
 import type { FileFilterCallback } from "multer";
@@ -55,11 +56,16 @@ router.post(
     await fs.mkdir(dir, { recursive: true });
     const urls: string[] = [];
     for (const file of files) {
-      const filename = `${Date.now()}-${Math.round(Math.random() * 1e6)}.webp`;
-      await sharp(file.buffer)
+      const source = sharp(file.buffer, { limitInputPixels: 80_000_000 });
+      const metadata = await source.metadata().catch(() => null);
+      if (!metadata || !["jpeg", "png", "webp", "heif"].includes(metadata.format ?? "")) {
+        throw ApiError.badRequest("Fichier image invalide ou corrompu.");
+      }
+      const filename = `${crypto.randomUUID()}.webp`;
+      await sharp(file.buffer, { limitInputPixels: 80_000_000 })
         .rotate()
         .resize(1600, 1200, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 82 })
+        .webp({ quality: 80 })
         .toFile(path.join(dir, filename));
       urls.push(`/uploads/offers/${filename}`);
     }

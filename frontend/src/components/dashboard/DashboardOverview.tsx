@@ -75,11 +75,6 @@ export function DashboardOverview({ locale }: { locale: string }) {
       color: "bg-success",
     },
     {
-      label: t("analytics.draft"),
-      value: summary?.draftOffers ?? 0,
-      color: "bg-ink-faint",
-    },
-    {
       label: t("analytics.archived"),
       value: summary?.archivedOffers ?? 0,
       color: "bg-danger",

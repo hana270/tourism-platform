@@ -14,12 +14,11 @@ router.get('/summary', requireAuth, requireRole('ADMIN', 'STAFF'), asyncHandler(
     return res.json({ success: true, data: cache.data });
   }
 
-  const [categories, activeCategories, offers, publishedOffers, draftOffers, archivedOffers, zones] = await Promise.all([
+  const [categories, activeCategories, offers, publishedOffers, archivedOffers, zones] = await Promise.all([
     prisma.category.count(),
     prisma.category.count({ where: { isActive: true } }),
     prisma.offer.count(),
     prisma.offer.count({ where: { status: 'PUBLISHED' } }),
-    prisma.offer.count({ where: { status: 'DRAFT' } }),
     prisma.offer.count({ where: { status: 'ARCHIVED' } }),
     prisma.zone.count(),
   ]);
@@ -33,7 +32,7 @@ router.get('/summary', requireAuth, requireRole('ADMIN', 'STAFF'), asyncHandler(
     bookings = 0;
   }
 
-  const data = { categories, activeCategories, offers, publishedOffers, draftOffers, archivedOffers, zones, bookings, generatedAt: new Date().toISOString() };
+  const data = { categories, activeCategories, offers, publishedOffers, archivedOffers, zones, bookings, generatedAt: new Date().toISOString() };
   cache = { data, expiresAt: Date.now() + CACHE_MS };
   res.setHeader('Cache-Control', 'private, max-age=15');
   return res.json({ success: true, data });

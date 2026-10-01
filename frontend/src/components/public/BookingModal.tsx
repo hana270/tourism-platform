@@ -161,7 +161,9 @@ export function BookingModal({
       `Voyageurs : ${people}`,
       notes.trim() ? `Message : ${notes.trim()}` : '',
       '',
-      'Merci de me confirmer la disponibilité et les modalités de réservation.',
+      selectedOffer.isHotel
+        ? 'Merci de bien vouloir vérifier la disponibilité de cet hôtel pour ma réservation et me confirmer les modalités.'
+        : `Je souhaite réserver cette offre pour la période du ${from} au ${to}. Merci de confirmer la prise en compte de ma demande.`,
     ].filter(Boolean).join('\n');
 
     setLoading(false);

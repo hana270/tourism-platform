@@ -185,9 +185,7 @@ export function PublicHeader() {
             onClick={closeMenus}
           >
             <span
-              className={`flex h-10 min-w-[54px] max-w-[150px] items-center justify-center overflow-hidden rounded-xl px-1.5 ${
-                "bg-[var(--accent)]"
-              }`}
+              className="flex h-10 min-w-[54px] max-w-[150px] items-center justify-center overflow-hidden px-1.5"
             >
               {site.logo ? (
                 <img

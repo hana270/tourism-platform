@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
+import crypto from 'crypto';
 
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'categories');
 
@@ -28,14 +29,14 @@ export async function processCategoryImage(
   const dir = path.join(UPLOAD_ROOT, categoryId);
   await ensureDir(dir);
 
-  const fileId = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+  const fileId = crypto.randomUUID();
   const urls: Record<string, string> = {};
 
   for (const [name, cfg] of Object.entries(VARIANTS)) {
     const filename = `${fileId}-${name}.webp`;
     const filepath = path.join(dir, filename);
 
-    await sharp(buffer)
+    await sharp(buffer, { limitInputPixels: 80_000_000 })
       .rotate()
       .resize(cfg.width, cfg.height, { fit: 'cover', position: 'centre' })
       .webp({ quality: cfg.quality })

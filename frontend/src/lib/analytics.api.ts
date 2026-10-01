@@ -5,7 +5,6 @@ export type DashboardSummary = {
   activeCategories: number;
   offers: number;
   publishedOffers: number;
-  draftOffers: number;
   archivedOffers: number;
   zones: number;
   bookings: number;

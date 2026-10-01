@@ -263,7 +263,6 @@ enum UserStatus {
 }
 
 enum OfferStatus {
-  DRAFT
   PUBLISHED
   ARCHIVED
 }

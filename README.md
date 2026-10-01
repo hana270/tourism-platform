@@ -1,49 +1,26 @@
-# IHOST — Plateforme touristique
 
-Site de réservation touristique en Tunisie : offres (hôtels, studios, appartements, activités), recherche, réservation via WhatsApp et tableau de bord d'administration.
 
-**Stack** : Next.js 14 (frontend) · Express + Prisma + PostgreSQL/Supabase (backend) · Google Translate · WhatsApp.
+## Remise à zéro contrôlée des données
 
-## Démarrage rapide
+Le script conserve les comptes administrateurs et les réglages du site par défaut :
 
-```bash
-# 1. Backend (port 4000)
+```bat
 cd backend
-cp .env.example .env        # puis renseigner DATABASE_URL, DIRECT_URL, DEEPL_API_KEY
-npm install
-npx prisma migrate deploy
-npm run dev
-
-# 2. Frontend (port 3000)
-cd frontend
-cp .env.local.example .env.local
-npm install
-npm run dev
+npm run db:reset-data
 ```
 
-Ouvrir http://localhost:3000 (site) et http://localhost:3000/fr/login (administration).
+Pour supprimer également les utilisateurs, sessions, tokens et réglages :
 
-## Fonctionnement
-
-- **Réservation client** : le formulaire enregistre la demande, puis ouvre WhatsApp (mobile, ordinateur) avec un message pré-rempli : offre + coordonnées du client.
-- **Blocage des dates** : automatique. Quand une réservation passe à **Confirmée** *et* **Payée**, ses dates sont bloquées et l'offre disparaît des résultats pour cette période. Si l'une des deux conditions est retirée, les dates sont libérées.
-- **Référencement** : URLs par langue, balises `hreflang`, sitemap multilingue, `robots.txt`, données structurées.
-
-## Sécurité
-
-- Ne jamais publier `backend/.env` (déjà dans `.gitignore`). Changez tout mot de passe qui a été partagé.
-- API protégée par Helmet, CORS restreint, limitation de débit et validation Zod.
-
-## Performance / erreurs « serveur trop long »
-
-Dans `DATABASE_URL`, ajouter : `?pgbouncer=true&connection_limit=10&pool_timeout=20&connect_timeout=15`.
-Le backend maintient la connexion à la base active et le frontend relance automatiquement les lectures échouées.
-
-## Production
-
-```bash
-cd backend  && npm run build && npm start
-cd frontend && npm run build && npm start
+```bat
+npm run db:reset-data -- --all
 ```
 
-Définir `NEXT_PUBLIC_SITE_URL` (domaine public) et `NEXT_PUBLIC_API_URL` côté frontend.
+Ces commandes sont destructives. Faites une sauvegarde et vérifiez `DATABASE_URL` avant de les exécuter.
+
+## Disponibilité et images
+
+- Le calendrier administrateur est en lecture seule et sert à vérifier les périodes bloquées.
+- Les blocages sont créés automatiquement par une réservation **Confirmée et Payée** et sont libérés si l’un des deux statuts est retiré.
+- Les images d’offres utilisent des noms UUID non prévisibles, une validation du contenu réel, une limite de pixels et une conversion WebP.
+- Les catégories n’acceptent qu’une image de couverture ; les offres peuvent avoir plusieurs photos.
+- Pour Render, utilisez un stockage objet persistant pour éviter la perte des uploads lors d’un redéploiement.

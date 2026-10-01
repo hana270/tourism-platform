@@ -56,9 +56,7 @@ export default function OfferDetailsPage({
   const statusLabel =
     offer.status === "PUBLISHED"
       ? t("published")
-      : offer.status === "ARCHIVED"
-        ? t("archived")
-        : t("draft");
+      : t("archived");
   const hotelPrices = [
     { label: t("form.simplePrice"), value: offer.simplePrice },
     { label: t("form.halfBoardPrice"), value: offer.halfBoardPrice },
