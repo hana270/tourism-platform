@@ -70,7 +70,6 @@ export default function PublicHome() {
   }, [locale]);
 
   const featured = useMemo(() => offers.filter((o) => o.status === "PUBLISHED").slice(0, 6), [offers]);
-  const promotions = useMemo(() => offers.filter((o) => (o.promotions ?? []).some((p) => new Date(p.startDate).getTime() <= Date.now() && new Date(p.endDate).getTime() >= Date.now())).slice(0, 3), [offers]);
   const showcase = useMemo(() => featured.filter((o) => o.photos.length > 0).slice(0, 5).map(toCarouselItem), [featured]);
   const cover = site.photoCouverture ? imageUrl(site.photoCouverture) : "";
   const collage = featured.filter((o) => o.photos.length > 0).slice(0, 2);
@@ -215,25 +214,6 @@ export default function PublicHome() {
             if (match) window.location.assign(`/${locale}${item.ctaUrl}`);
           }}
         />
-      )}
-
-      {/* ---------- PROMOTIONS ---------- */}
-      {promotions.length > 0 && (
-        <section className="bg-[var(--canvas-alt)] py-16">
-          <div className="public-container">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="inline-flex rounded-full bg-[var(--accent)] px-3 py-1 text-[10px] font-black uppercase tracking-[.18em] text-[var(--ink)]">Offres du moment</span>
-                <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[var(--ink)] sm:text-4xl" style={display}>Profitez de nos promotions</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--ink-soft)]">Des tarifs préférentiels, avec une période de validité clairement affichée.</p>
-              </div>
-              <Link href={`/${locale}/search`} className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--ink)]">Toutes les offres <ChevronRight size={16}/></Link>
-            </div>
-            <div className="mt-8 grid gap-5 md:grid-cols-3">
-              {promotions.map((o) => <OfferCard key={`promo-${o.id}`} offer={o} locale={locale} onReserve={setBooking} />)}
-            </div>
-          </div>
-        </section>
       )}
 
       {/* ---------- OFFRES ---------- */}

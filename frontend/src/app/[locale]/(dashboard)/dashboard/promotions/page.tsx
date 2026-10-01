@@ -11,7 +11,6 @@ import { apiErrorMessage } from "@/lib/api";
 
 type Form = {
   offerId: string;
-  priceType: "BASE" | "SIMPLE" | "HALF_BOARD" | "FULL_BOARD" | "ALL_INCLUSIVE";
   oldPrice: string;
   newPrice: string;
   startDate: string;
@@ -21,7 +20,6 @@ type Form = {
 };
 const empty: Form = {
   offerId: "",
-  priceType: "BASE",
   oldPrice: "",
   newPrice: "",
   startDate: "",
@@ -79,11 +77,12 @@ export default function PromotionsPage() {
     () => offers.filter((offer) => offer.status !== "ARCHIVED"),
     [offers],
   );
-  function priceFor(offer: Offer, type: Form["priceType"]) {
-    const value = type === "SIMPLE" ? offer.simplePrice : type === "HALF_BOARD" ? offer.halfBoardPrice : type === "FULL_BOARD" ? offer.fullBoardPrice : type === "ALL_INCLUSIVE" ? offer.allInclusivePrice : offer.price;
+  function basePrice(offer: Offer) {
+    const value = offer.isHotel
+      ? (offer.simplePrice ?? offer.price)
+      : offer.price;
     return Number(value || 0).toFixed(2);
   }
-  function typeLabel(type: Form["priceType"]) { return ({BASE:"Tarif de base",SIMPLE:"Logement seul",HALF_BOARD:"Demi-pension",FULL_BOARD:"Pension complète",ALL_INCLUSIVE:"All Inclusive"}[type]); }
   function openCreate() {
     setEditing(null);
     setForm(empty);
@@ -94,7 +93,6 @@ export default function PromotionsPage() {
     setEditing(row);
     setForm({
       offerId: row.offerId,
-      priceType: row.priceType || "BASE",
       oldPrice: String(row.oldPrice),
       newPrice: String(row.newPrice),
       startDate: row.startDate.slice(0, 10),
@@ -108,11 +106,10 @@ export default function PromotionsPage() {
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const selectedOffer = offerOptions.find((item) => item.id === form.offerId);
     const oldPrice = Number(form.oldPrice);
     const newPrice = Number(form.newPrice);
     if (
-      !selectedOffer ||
+      !form.offerId ||
       !form.startDate ||
       !form.endDate ||
       !(oldPrice > 0) ||
@@ -195,7 +192,7 @@ export default function PromotionsPage() {
           <thead>
             <tr>
               <th>{t("offer")}</th>
-              <th>Formule</th><th>{t("oldPrice")}</th>
+              <th>{t("oldPrice")}</th>
               <th>{t("newPrice")}</th>
               <th>{t("period")}</th>
               <th>{t("status")}</th>
@@ -214,8 +211,9 @@ export default function PromotionsPage() {
                       offerOptions.find((o) => o.id === row.offerId)?.name ??
                       "—"}
                   </td>
-                  <td><span className="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-ink-soft">{typeLabel(row.priceType || "BASE")}</span></td>
-                  <td className="text-ink-faint line-through">{row.oldPrice} TND</td>
+                  <td className="text-ink-faint line-through">
+                    {row.oldPrice} TND
+                  </td>
                   <td>
                     <div className="flex items-center gap-2"><span className="font-semibold text-ink">{row.newPrice} TND</span><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700">−{discountPercent(row.oldPrice, row.newPrice)}%</span></div>
                   </td>
@@ -287,8 +285,7 @@ export default function PromotionsPage() {
                     setForm({
                       ...form,
                       offerId: e.target.value,
-                      priceType: offer?.isHotel ? "SIMPLE" : "BASE",
-                      oldPrice: offer ? priceFor(offer, offer.isHotel ? "SIMPLE" : "BASE") : "",
+                      oldPrice: offer ? basePrice(offer) : "",
                     });
                   }}
                 >
@@ -299,13 +296,6 @@ export default function PromotionsPage() {
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="block md:col-span-2">
-                <span className="label">Formule tarifaire</span>
-                <select className="input" value={form.priceType} onChange={(e) => { const next = e.target.value as Form["priceType"]; const selected = offerOptions.find((item) => item.id === form.offerId); setForm({ ...form, priceType: next, oldPrice: selected ? priceFor(selected, next) : "" }); }} disabled={!form.offerId}>
-                  {(() => { const selected = offerOptions.find((item) => item.id === form.offerId); const options: Array<[Form["priceType"], string]> = selected?.isHotel ? [["SIMPLE","Logement seul"],["HALF_BOARD","Demi-pension"],["FULL_BOARD","Pension complète"],["ALL_INCLUSIVE","All Inclusive"]] : [["BASE","Tarif de base"]]; return options.map(([value,label]) => <option key={value} value={value}>{label}</option>); })()}
-                </select>
-                <span className="mt-1 block text-[11px] text-ink-faint">{form.offerId ? `Promotion appliquée sur : ${typeLabel(form.priceType)}` : "Sélectionnez d’abord une offre."}</span>
               </label>
               <label className="block">
                 <span className="label">{t("oldPrice")}</span>

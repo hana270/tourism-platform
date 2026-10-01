@@ -216,7 +216,6 @@ model Promotion {
   offerId        String
   oldPrice       Decimal         @db.Decimal(10, 2)
   newPrice       Decimal         @db.Decimal(10, 2)
-  priceType      String          @default("BASE")
   startDate      DateTime
   endDate        DateTime
   status         PromotionStatus @default(ACTIVE)

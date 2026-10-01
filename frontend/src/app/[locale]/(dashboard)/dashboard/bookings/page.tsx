@@ -1,26 +1,59 @@
 'use client';
-import { useCallback,useEffect,useMemo,useState } from 'react';
-import { CheckCircle2, CircleDollarSign, Clock3, Filter, RefreshCw, UserRound, XCircle } from 'lucide-react';
-import Swal from 'sweetalert2';
+
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from '@/i18n/translate';
+import Swal from 'sweetalert2';
 import { OperationsApi, Reservation } from '@/lib/operations.api';
 
-const statusLabel=(v:string)=>({PENDING:'Nouvelle',CONTACTED:'En contact',CONFIRMED:'Confirmée',CANCELLED:'Annulée',COMPLETED:'Terminée'}[v]||v);
-const paymentLabel=(v:string)=>({NOT_PAID:'Non payée',PENDING:'En attente',PAID:'Payée'}[v]||v);
-export default function BookingsPage(){
- const t=useTranslations('bookings'); const [rows,setRows]=useState<Reservation[]>([]); const [loading,setLoading]=useState(true); const [filter,setFilter]=useState('ALL');
- const load=useCallback(async()=>{setLoading(true);try{setRows(await OperationsApi.reservations(filter==='ALL'?undefined:filter))}finally{setLoading(false)}},[filter]); useEffect(()=>{void load()},[load]);
- const stats=useMemo(()=>({pending:rows.filter(r=>r.status==='PENDING').length,confirmed:rows.filter(r=>r.status==='CONFIRMED').length,paid:rows.filter(r=>r.paymentStatus==='PAID').length}),[rows]);
- const statCards=[
-  {label:'Nouvelles',value:stats.pending,Icon:Clock3,style:'bg-amber-50 text-amber-700'},
-  {label:'Confirmées',value:stats.confirmed,Icon:CheckCircle2,style:'bg-emerald-50 text-emerald-700'},
-  {label:'Payées',value:stats.paid,Icon:CircleDollarSign,style:'bg-sky-50 text-sky-700'},
- ];
- async function update(row:Reservation,key:'status'|'paymentStatus',value:string){try{await OperationsApi.updateReservation(row.id,{[key]:value});await load();}catch{await Swal.fire({icon:'error',title:t('updateError')})}}
- return <div className="page-transition space-y-6">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="font-display text-2xl font-semibold text-ink">{t('title')}</h1><p className="mt-1 text-sm text-ink-soft">Centralisez les demandes WhatsApp, la confirmation et le paiement.</p></div><button className="btn-secondary" onClick={()=>void load()} disabled={loading}><RefreshCw size={15} className={loading?'animate-spin':''}/>Actualiser</button></div>
-  <div className="grid gap-3 sm:grid-cols-3">{statCards.map(({label,value,Icon,style})=><div key={label} className="dashboard-card rounded-2xl border border-border bg-surface p-4 shadow-sm"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${style}`}><Icon size={17}/></div><p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">{label}</p><p className="mt-1 font-display text-2xl font-semibold text-ink">{value}</p></div>)}</div>
-  <div className="card overflow-hidden"><div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm font-semibold text-ink"><Filter size={16}/>Filtrer les demandes</div><select className="input sm:w-56" value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">Toutes</option><option value="PENDING">Nouvelles</option><option value="CONTACTED">En contact</option><option value="CONFIRMED">Confirmées</option><option value="CANCELLED">Annulées</option><option value="COMPLETED">Terminées</option></select></div>
-   <div className="overflow-x-auto"><table className="data-table has-actions min-w-[1050px]"><thead><tr><th>Client</th><th>Offre</th><th>Séjour</th><th>Voyageurs</th><th>Demande</th><th>Réservation</th><th>Paiement</th></tr></thead><tbody className="divide-y divide-border">{rows.map(row=><tr key={row.id} className="transition-colors hover:bg-surface-alt/60"><td><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-alt"><UserRound size={14}/></span><div><p className="font-semibold text-ink">{row.customerName}</p><p className="text-xs text-ink-faint">{row.customerPhone}</p></div></div></td><td><p className="max-w-48 truncate font-medium text-ink">{row.offer?.name||'—'}</p><p className="text-[10px] text-ink-faint">Réf. {row.id.slice(-8)}</p></td><td className="text-sm text-ink-soft">{row.startDate?.slice(0,10)||'—'} → {row.endDate?.slice(0,10)||'—'}</td><td className="text-sm font-semibold text-ink">{row.guests}</td><td><span className="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-ink-soft">{statusLabel(row.status)}</span></td><td><select className="input h-9 min-w-32 text-xs" value={row.status} onChange={e=>void update(row,'status',e.target.value)}><option value="PENDING">Nouvelle</option><option value="CONTACTED">En contact</option><option value="CONFIRMED">Confirmée</option><option value="CANCELLED">Annulée</option><option value="COMPLETED">Terminée</option></select></td><td><select className={`input h-9 min-w-32 text-xs ${row.paymentStatus==='PAID'?'border-emerald-200 bg-emerald-50':''}`} value={row.paymentStatus} onChange={e=>void update(row,'paymentStatus',e.target.value)}><option value="NOT_PAID">Non payée</option><option value="PENDING">En attente</option><option value="PAID">Payée</option></select>{row.status==='CONFIRMED'&&row.paymentStatus==='PAID'&&<span className="mt-1 block text-[10px] font-bold text-emerald-700">Date bloquée automatiquement</span>}</td></tr>)}</tbody></table></div>{!loading&&rows.length===0&&<div className="p-12 text-center"><XCircle className="mx-auto text-ink-faint"/><p className="mt-2 text-sm font-semibold text-ink">Aucune réservation</p><p className="mt-1 text-xs text-ink-faint">Les nouvelles demandes apparaîtront ici après leur envoi.</p></div>}</div>
- </div>;
+export default function BookingsPage() {
+  const t = useTranslations('bookings');
+  const [rows, setRows] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await OperationsApi.reservations();
+      setRows(result);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function statusTone(value: string) { return value === 'CONFIRMED' || value === 'COMPLETED' || value === 'PAID' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : value === 'PENDING' ? 'border-amber-200 bg-amber-50 text-amber-800' : value === 'CONTACTED' ? 'border-sky-200 bg-sky-50 text-sky-800' : value === 'CANCELLED' || value === 'NOT_PAID' ? 'border-red-200 bg-red-50 text-red-800' : 'border-slate-200 bg-slate-50 text-slate-700'; }
+
+  async function update(row: Reservation, key: 'status' | 'paymentStatus', value: string) {
+    try {
+      await OperationsApi.updateReservation(row.id, { [key]: value });
+      await load();
+    } catch { await Swal.fire({ icon: 'error', title: t('updateError') }); }
+  }
+
+  return (
+    <div className="page-transition">
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-semibold text-ink">{t('title')}</h1>
+        <p className="mt-1 text-sm text-ink-soft">{t('subtitle')}</p>
+      </div>
+      <div className="card overflow-x-auto">
+        <table className="data-table">
+          <thead><tr>
+            <th>{t('customer')}</th><th>{t('offer')}</th><th>{t('dates')}</th><th>{t('guests')}</th><th>{t('status')}</th><th>{t('payment')}</th>
+          </tr></thead>
+          <tbody className="divide-y divide-border">
+            {!loading && rows.map((row) => <tr key={row.id} className="transition-colors hover:bg-surface-alt/60">
+              <td><div className="font-medium text-ink">{row.customerName}</div><div className="text-xs text-ink-faint">{row.customerPhone}</div></td>
+              <td className="text-ink-soft">{row.offer?.name ?? '—'}</td>
+              <td className="text-ink-soft">{row.startDate ? new Date(row.startDate).toLocaleDateString() : '—'} → {row.endDate ? new Date(row.endDate).toLocaleDateString() : '—'}</td>
+              <td>{row.guests}</td>
+              <td><select className={`min-w-36 rounded-xl border px-3 py-2 text-xs font-bold outline-none ${statusTone(row.status)}`} value={row.status} onChange={(e) => void update(row, 'status', e.target.value)}><option value="PENDING">{t('statusValues.PENDING')}</option><option value="CONFIRMED">{t('statusValues.CONFIRMED')}</option><option value="CANCELLED">{t('statusValues.CANCELLED')}</option></select></td>
+              <td><select className={`min-w-32 rounded-xl border px-3 py-2 text-xs font-bold outline-none ${statusTone(row.paymentStatus)}`} value={row.paymentStatus} onChange={(e) => void update(row, 'paymentStatus', e.target.value)}><option value="NOT_PAID">{t('paymentValues.NOT_PAID')}</option><option value="PENDING">{t('paymentValues.PENDING')}</option><option value="PAID">{t('paymentValues.PAID')}</option></select></td>
+            </tr>)}
+          </tbody>
+        </table>
+        {!loading && rows.length === 0 && <p className="p-10 text-center text-sm text-ink-faint">{t('empty')}</p>}
+      </div>
+    </div>
+  );
 }
