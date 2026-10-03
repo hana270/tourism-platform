@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import fs from 'fs/promises';
 import multer from 'multer';
 import sharp from 'sharp';
 import { z } from 'zod';
@@ -10,7 +9,7 @@ import { addDays, createOpaqueToken, hashToken } from '@/lib/security';
 import { requireAuth, sessionCookieOptions } from '@/middlewares/auth';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { ApiError } from '@/utils/ApiError';
-import { ensureUploadDir, uploadPath, uploadUrl } from '@/lib/upload-storage';
+import { uploadObject, deleteStoredUrls } from '@/lib/storage';
 
 
 const router = Router();
@@ -165,16 +164,11 @@ router.patch('/me', requireAuth, asyncHandler(async (req: Request, res: Response
 
 router.post('/me/photo', requireAuth, profileUpload, asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw ApiError.badRequest('Image de profil manquante.');
-  await ensureUploadDir('profiles');
-  const filename = `${req.auth!.userId}-${Date.now()}.webp`;
-  await sharp(req.file.buffer).rotate().resize(512, 512, { fit: 'cover' }).webp({ quality: 86 }).toFile(uploadPath('profiles', filename));
-  const url = uploadUrl('profiles', filename);
+  const webp = await sharp(req.file.buffer).rotate().resize(512, 512, { fit: 'cover' }).webp({ quality: 86 }).toBuffer();
+  const url = await uploadObject(`profiles/${req.auth!.userId}-${Date.now()}.webp`, webp);
   const current = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { profilePhoto: true } });
   await prisma.user.update({ where: { id: req.auth!.userId }, data: { profilePhoto: url } });
-  if (current?.profilePhoto?.startsWith('/uploads/')) {
-    const relative = current.profilePhoto.replace(/^\/uploads\//, '').split('/').map(decodeURIComponent);
-    await fs.rm(uploadPath(...relative), { force: true }).catch(() => undefined);
-  }
+  await deleteStoredUrls([current?.profilePhoto]);
   res.status(201).json({ success: true, data: { profilePhoto: url } });
 }));
 

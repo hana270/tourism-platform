@@ -6,7 +6,7 @@ import { prisma } from '@/config/prisma';
 import { requireAuth, requireRole } from '@/middlewares/auth';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { audit } from '@/lib/audit';
-import { ensureUploadDir, uploadPath, uploadUrl } from '@/lib/upload-storage';
+import { uploadObject } from '@/lib/storage';
 
 const router = Router();
 const keys = { eur: 'exchange_rate_tnd_eur', usd: 'exchange_rate_tnd_usd', updatedAt: 'exchange_rate_updated_at' } as const;
@@ -27,6 +27,12 @@ router.patch('/contact', requireAuth, requireRole('ADMIN'), asyncHandler(async (
 
 router.get('/homepage', asyncHandler(async (_req: Request, res: Response) => { const v = await readKeys(homeKeys); res.json({ success: true, data: Object.fromEntries(homeKeys.map((key) => [key, v[key] ?? ''])) }); }));
 router.patch('/homepage', requireAuth, requireRole('ADMIN'), asyncHandler(async (req: Request, res: Response) => { const input = homeSchema.parse(req.body); await saveKeys(input); await audit(req.auth!.userId, 'UPDATE', 'HomepageSettings', 'homepage', { fields: Object.keys(input) }); res.json({ success: true, data: input }); }));
- router.post('/homepage/upload', requireAuth, requireRole('ADMIN'), upload, asyncHandler(async (req: Request, res: Response) => { if (!req.file) { res.status(400).json({ success: false, message: 'Image manquante.' }); return; } await ensureUploadDir('settings'); const filename = `${Date.now()}-${Math.round(Math.random() * 1e6)}.webp`; await sharp(req.file.buffer).rotate().resize(2400, 1400, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 84 }).toFile(uploadPath('settings', filename)); const url = uploadUrl('settings', filename); await audit(req.auth!.userId, 'UPLOAD', 'HomepageSettings', 'homepage', { url }); res.status(201).json({ success: true, data: { url } }); }));
+router.post('/homepage/upload', requireAuth, requireRole('ADMIN'), upload, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) { res.status(400).json({ success: false, message: 'Image manquante.' }); return; }
+  const webp = await sharp(req.file.buffer).rotate().resize(2400, 1400, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 84 }).toBuffer();
+  const url = await uploadObject(`settings/${Date.now()}-${Math.round(Math.random() * 1e6)}.webp`, webp);
+  await audit(req.auth!.userId, 'UPLOAD', 'HomepageSettings', 'homepage', { url });
+  res.status(201).json({ success: true, data: { url } });
+}));
 
 export default router;

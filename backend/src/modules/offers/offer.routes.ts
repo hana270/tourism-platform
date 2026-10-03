@@ -12,7 +12,8 @@ import { asyncHandler } from "@/utils/asyncHandler";
 import { ApiError } from "@/utils/ApiError";
 import { translateToEnglish } from "@/lib/seo-translation";
 import { Prisma, PromotionStatus } from "@prisma/client";
-import { deleteOfferImage, processOfferImage } from "@/lib/image-processing";
+import { processOfferImage } from "@/lib/image-processing";
+import { deleteStoredUrls } from "@/lib/storage";
 const router = Router();
 
 /* ---------- Upload des images ---------- */
@@ -136,10 +137,9 @@ const include: Prisma.OfferInclude = {
 
   zone: true,
 
+  // La couverture (isPrimary) est toujours la première, puis l'ordre d'ajout.
   photos: {
-    orderBy: {
-      isPrimary: "desc",
-    },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }, { id: "asc" }],
   },
 
   customFields: {
@@ -160,15 +160,22 @@ const include: Prisma.OfferInclude = {
   },
 };
 
+/**
+ * Une offre = plusieurs images dont UNE SEULE couverture.
+ * - doublons d'URL supprimés ;
+ * - exactement une photo isPrimary : la première marquée, sinon la première de la liste.
+ */
 function normalizePhotos(input: OfferInput) {
-  const list = input.photos.map((p) => ({
-    url: p.url,
-    isPrimary: p.isPrimary,
-    altText: p.altText ?? input.name,
-  }));
-  if (list.length > 0 && !list.some((p) => p.isPrimary))
-    list[0].isPrimary = true;
-  return list;
+  const seen = new Set<string>();
+  const list = input.photos
+    .filter((p) => !seen.has(p.url) && !!seen.add(p.url))
+    .map((p) => ({
+      url: p.url,
+      isPrimary: p.isPrimary,
+      altText: p.altText ?? input.name,
+    }));
+  const coverIndex = Math.max(0, list.findIndex((p) => p.isPrimary));
+  return list.map((p, index) => ({ ...p, isPrimary: index === coverIndex }));
 }
 
 function baseData(input: OfferInput) {
@@ -341,10 +348,8 @@ router.patch(
       });
     });
     const keptUrls = new Set(input.photos.map((photo) => photo.url));
-    await Promise.all(
-      existing.photos
-        .filter((photo) => !keptUrls.has(photo.url))
-        .map((photo) => deleteOfferImage(photo.url)),
+    await deleteStoredUrls(
+      existing.photos.filter((photo) => !keptUrls.has(photo.url)).map((photo) => photo.url),
     );
     await audit(req.auth!.userId, "UPDATE", "Offer", id, { name: data.name });
     res.json({ success: true, data });
@@ -382,12 +387,7 @@ router.delete(
     });
     if (!offer) throw ApiError.notFound("Offre introuvable.");
     await prisma.offer.delete({ where: { id: req.params.id } });
-    await Promise.all(
-      offer.photos.map(async (photo) => {
-        if (!photo.url.startsWith("/uploads/")) return;
-        await deleteOfferImage(photo.url);
-      }),
-    );
+    await deleteStoredUrls(offer.photos.map((photo) => photo.url));
     await audit(req.auth!.userId, "DELETE", "Offer", offer.id, {
       name: offer.name,
     });

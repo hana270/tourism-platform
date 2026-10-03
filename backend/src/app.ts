@@ -9,7 +9,6 @@ import { env } from '@/config/env';
 import apiRoutes from '@/routes/index';
 import { notFound } from '@/middlewares/notFound';
 import { errorHandler } from '@/middlewares/errorHandler';
-import { UPLOAD_ROOT } from '@/lib/upload-storage';
 
 export function createApp() {
   const app = express();
@@ -22,12 +21,8 @@ export function createApp() {
   app.use(cookieParser());
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false }));
   if (env.NODE_ENV === 'development') app.use(morgan('dev'));
-  app.use('/uploads', express.static(UPLOAD_ROOT, {
-    fallthrough: true,
-    dotfiles: 'deny',
-    maxAge: env.NODE_ENV === 'production' ? '7d' : 0,
-    immutable: env.NODE_ENV === 'production',
-  }));
+  // Les images ne sont plus servies par ce serveur : elles vivent dans Supabase Storage
+  // (URLs publiques complètes enregistrées en base).
   app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
   app.use('/api/v1', apiRoutes);
   app.use(notFound);

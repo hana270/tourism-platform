@@ -1,7 +1,8 @@
 import { prisma } from '@/config/prisma';
 import { ApiError } from '@/utils/ApiError';
 import { buildTranslations, makeSlug } from '@/lib/seo-translation';
-import { processCategoryImage, deleteCategoryImages } from '@/lib/image-processing';
+import { processCategoryImage } from '@/lib/image-processing';
+import { deleteStoredUrls } from '@/lib/storage';
 import { audit } from '@/lib/audit';
 import { CreateCategoryInput, UpdateCategoryInput } from './category.validation';
 
@@ -133,22 +134,27 @@ export const CategoryService = {
       }
     });
 
-    // 4. Nouvelle couverture : elle devient la première image affichée.
-    // Les autres images déjà présentes en base sont conservées pour une évolution future.
+    // 4. Nouvelle couverture : une catégorie n'a qu'UNE image (sa couverture).
+    // Ordre sûr : 1) envoi de la nouvelle image, 2) remplacement en base,
+    // 3) suppression des anciens fichiers. Si l'envoi échoue, l'ancienne image reste intacte.
     if (newFiles?.length) {
-      await prisma.categoryImage.deleteMany({ where: { categoryId: id } });
+      const previous = await prisma.categoryImage.findMany({ where: { categoryId: id } });
       const variants = await processCategoryImage(newFiles[0].buffer, id);
-      await prisma.categoryImage.create({
-        data: {
-          categoryId: id,
-          url: variants.url,
-          thumbnailUrl: variants.thumbnailUrl,
-          mediumUrl: variants.mediumUrl,
-          largeUrl: variants.largeUrl,
-          displayOrder: 0,
-          altText: newName,
-        },
-      });
+      await prisma.$transaction([
+        prisma.categoryImage.deleteMany({ where: { categoryId: id } }),
+        prisma.categoryImage.create({
+          data: {
+            categoryId: id,
+            url: variants.url,
+            thumbnailUrl: variants.thumbnailUrl,
+            mediumUrl: variants.mediumUrl,
+            largeUrl: variants.largeUrl,
+            displayOrder: 0,
+            altText: newName,
+          },
+        }),
+      ]);
+      await deleteStoredUrls(previous.flatMap((img) => [img.url, img.thumbnailUrl, img.mediumUrl, img.largeUrl]));
     }
 
     return this.getById(id);
@@ -161,7 +167,9 @@ export const CategoryService = {
       throw ApiError.conflict(`Cette catégorie contient ${offerCount} offre(s). Désactivez-la ou déplacez les offres avant toute suppression.`);
     }
     await prisma.category.delete({ where: { id } });
-    await deleteCategoryImages(id);
+    await deleteStoredUrls(
+      category.images.flatMap((img) => [img.url, img.thumbnailUrl, img.mediumUrl, img.largeUrl]),
+    );
     await audit(actorId, 'DELETE', 'Category', id, { name: category.name });
   },
 };

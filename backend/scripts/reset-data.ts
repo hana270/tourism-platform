@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { resetUploadDirectories } from '../src/lib/upload-storage';
+import { removePrefix } from '../src/lib/storage';
 
 const prisma = new PrismaClient();
 const all = process.argv.includes('--all');
@@ -27,7 +27,7 @@ async function main() {
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE ${tables.map((table) => `"${table}"`).join(', ')} RESTART IDENTITY CASCADE`,
   );
-  await resetUploadDirectories();
+  for (const folder of ['offers', 'categories', 'profiles', 'settings']) await removePrefix(folder);
 
   console.log(all
     ? 'Toutes les données, comptes, réglages et médias ont été supprimés.'

@@ -2,9 +2,10 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 
 /**
- * Répertoire persistant des uploads.
- * Sur Render, définir UPLOAD_DIR vers un disque persistant monté, par exemple
- * /var/data/uploads. En local, le fallback reste backend/uploads.
+ * LEGACY — ne plus utiliser pour de nouveaux envois.
+ * Les images sont désormais stockées dans Supabase Storage (voir lib/storage.ts).
+ * Ce fichier ne sert plus qu'à LIRE les anciens fichiers de backend/uploads
+ * pour la migration (npm run images:migrate).
  */
 export const UPLOAD_ROOT = path.resolve(
   process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'),
