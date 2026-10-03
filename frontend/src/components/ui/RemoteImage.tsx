@@ -10,15 +10,17 @@ export function RemoteImage({
   alt,
   className,
   eager,
+  folder,
 }: {
   src: string | null | undefined;
   alt: string;
   className?: string;
   eager?: boolean;
+  folder?: string;
 }) {
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const imgRef = useRef<HTMLImageElement>(null);
-  const url = imageUrl(src);
+  const url = imageUrl(src, folder);
 
   // Nouvelle source -> on repart de zéro.
   useEffect(() => {

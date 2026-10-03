@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { BedDouble, ChevronDown, Menu, Search, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BedDouble, ChevronDown, Compass, MapPin, Menu, Search, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useLocale } from "@/i18n/translate";
 import { SiteSettingsApi, HomepageSettings } from "@/lib/site-settings.api";
 import { CategoriesApi } from "@/lib/categories.api";
@@ -13,80 +13,67 @@ import { imageUrl } from "@/lib/api";
 import { Category } from "@/types/category";
 import { Offer, Zone } from "@/types/offer";
 import GoogleTranslateWidget from "@/components/layout/GoogleTranslateWidget";
-import { NavSearch } from "@/components/public/NavSearch";
+import {
+  CompactSearchPill, DesktopSearch, Field, MobileSearchSheet,
+  formatDates, formatGuests, patchSearch, useSearchState,
+} from "@/components/public/NavSearch";
+import { categoryIcon } from "@/lib/category-icons";
 
 /**
- * Barre de navigation publique.
+ * Navbar publique, fixe, type Airbnb.
  *
- * - En haut du hero : logo à gauche, trois menus déroulants au centre,
- *   traduction à droite, fond transparent/verre.
- * - Dès que le hero (et sa propre barre de recherche) sort de l'écran :
- *   la navbar devient blanche et affiche la recherche compacte à sa place.
+ * Bureau
+ *  - Haut de page (hero) : logo · onglets avec icônes · grande barre Où / Quand / Qui.
+ *  - Après défilement   : la grande barre se replie en pilule compacte ; un clic
+ *    la rouvre avec animation (fond assombri).
+ *  - Pages sans hero    : pilule compacte en permanence.
  *
- * Le basculement n'est PAS piloté par un nombre de pixels arbitraire :
- * il écoute un "sentinel" posé par la page d'accueil juste sous le hero
- * (id="hero-sentinel" ou data-hero-sentinel), via IntersectionObserver.
- * Si aucun sentinel n'est trouvé sur la page (ex: une page sans hero),
- * on retombe sur un seuil de scroll raisonnable.
+ * Mobile
+ *  - Icônes de catégories (sélection) au-dessus, puis « Commencer ma recherche ».
+ *  - Le clic ouvre une feuille plein écran animée : Où → Quand → Qui.
+ *
+ * Utilisation : <PublicHeader hero /> sur l'accueil, <PublicHeader /> ailleurs.
  */
 
 type MenuId = "zones" | "categories" | "inspiration";
 
-const MENUS: { id: MenuId; label: string }[] = [
-  { id: "zones", label: "Lieux à visiter" },
-  { id: "categories", label: "Choses à faire" },
-  { id: "inspiration", label: "Inspiration voyage" },
+const MENUS: { id: MenuId; label: string; Icon: LucideIcon }[] = [
+  { id: "zones", label: "Lieux à visiter", Icon: MapPin },
+  { id: "categories", label: "Choses à faire", Icon: Compass },
+  { id: "inspiration", label: "Inspiration voyage", Icon: Sparkles },
 ];
 
-const DEFAULT_SITE: HomepageSettings = {
-  logo: "",
-  nomSite: "IHOST",
-  photoCouverture: "",
-  titreAccueil: "",
-  sousTitre: "",
-};
-
-const FALLBACK_SCROLL_THRESHOLD = 420;
+const DEFAULT_SITE: HomepageSettings = { logo: "", nomSite: "IHOST", photoCouverture: "", titreAccueil: "", sousTitre: "" };
 
 const activePromotion = (offer: Offer) => {
   const now = Date.now();
-  return (
-    offer.promotions?.find(
-      (p) =>
-        new Date(p.startDate).getTime() <= now &&
-        new Date(p.endDate).getTime() >= now,
-    ) ?? null
-  );
+  return offer.promotions?.find((p) => new Date(p.startDate).getTime() <= now && new Date(p.endDate).getTime() >= now) ?? null;
 };
 
 function startingPrice(offer: Offer): number | null {
   if (!offer.isHotel) return offer.price != null ? Number(offer.price) : null;
-  const prices = [
-    offer.simplePrice,
-    offer.halfBoardPrice,
-    offer.fullBoardPrice,
-    offer.allInclusivePrice,
-  ]
+  const prices = [offer.simplePrice, offer.halfBoardPrice, offer.fullBoardPrice, offer.allInclusivePrice]
     .filter((v) => v != null)
     .map(Number);
   return prices.length ? Math.min(...prices) : null;
 }
 
-const linkClass =
-  "block rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--canvas-alt)]";
+const linkClass = "block rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--canvas-alt)]";
+const panelTitle = "mb-3 px-3 text-lg font-semibold text-[var(--ink)]";
 
-export function PublicHeader() {
+export function PublicHeader({ hero = false }: { hero?: boolean }) {
   const locale = useLocale();
+  const s = useSearchState();
   const [site, setSite] = useState(DEFAULT_SITE);
   const [categories, setCategories] = useState<Category[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [bestOffers, setBestOffers] = useState<Offer[] | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [forced, setForced] = useState(false);
   const [menu, setMenu] = useState<MenuId | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<"menu" | "search" | null>(
-    null,
-  );
-  const headerRef = useRef<HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sheet, setSheet] = useState<Field | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,30 +92,15 @@ export function PublicHeader() {
     };
   }, [locale]);
 
-  // Bascule navbar <-> hero : observe le sentinel posé par la page (fin du hero).
-  // C'est ce qui corrige le bug : plus de seuil fixe en pixels, le changement
-  // se produit exactement quand le hero (et sa recherche) quitte l'écran.
   useEffect(() => {
-    const sentinel = document.querySelector<HTMLElement>(
-      "[data-hero-sentinel]",
-    );
-
-    if (!sentinel) {
-      // Pas de hero sur cette page (ex: page de résultats) : comportement de repli.
-      const onScroll = () =>
-        setScrolled(window.scrollY > FALLBACK_SCROLL_THRESHOLD);
-      onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
-      return () => window.removeEventListener("scroll", onScroll);
-    }
-
-    const headerHeight = headerRef.current?.offsetHeight ?? 0;
-    const observer = new IntersectionObserver(
-      ([entry]) => setScrolled(!entry.isIntersecting),
-      { rootMargin: `-${headerHeight}px 0px 0px 0px`, threshold: 0 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    const onScroll = () => {
+      setScrolled(window.scrollY > 12);
+      setForced(false);
+      setMenu(null);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
@@ -137,9 +109,7 @@ export function PublicHeader() {
     OffersApi.list({ locale, status: "PUBLISHED" })
       .then((items) => {
         if (cancelled) return;
-        const ranked = [...items].sort(
-          (a, b) => Number(!!activePromotion(b)) - Number(!!activePromotion(a)),
-        );
+        const ranked = [...items].sort((a, b) => Number(!!activePromotion(b)) - Number(!!activePromotion(a)));
         setBestOffers(ranked.slice(0, 3));
       })
       .catch(() => !cancelled && setBestOffers([]));
@@ -149,415 +119,288 @@ export function PublicHeader() {
   }, [menu, bestOffers, locale]);
 
   useEffect(() => {
-    if (!menu) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    if (!menu && !forced) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenu(null);
+        setForced(false);
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [menu]);
+  }, [menu, forced]);
 
-  const activeMenu = scrolled ? null : menu;
-  const closeMenus = () => {
-    setMenu(null);
-    setMobilePanel(null);
-  };
+  const topState = hero && !scrolled;
+  const expanded = hero ? !scrolled || forced : forced;
   const searchUrl = `/${locale}/search`;
+  const closeAll = () => {
+    setMenu(null);
+    setMenuOpen(false);
+    setForced(false);
+  };
 
-  const ghost = "border-[var(--line)] bg-white text-[var(--ink)]";
+  const hasSearch = !!(s.text || s.category || s.start);
+  const mobileTitle = s.text || s.category?.name || "Commencer ma recherche";
+  const mobileSub = hasSearch ? `${formatDates(locale, s)} · ${formatGuests(s.guests)}` : "Lieu · Dates · Voyageurs";
+
+  const logo = (
+    <Link href={`/${locale}`} onClick={closeAll} className="notranslate flex min-w-0 items-center gap-2.5">
+      {site.logo ? (
+        <img src={imageUrl(site.logo)} alt={site.nomSite} className="block max-h-9 w-auto max-w-[140px] object-contain" />
+      ) : (
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent)] text-xs font-black text-[var(--on-accent)]">IH</span>
+      )}
+      <strong className="hidden max-w-[150px] truncate text-base font-bold tracking-tight text-[var(--ink)] sm:block" style={{ fontFamily: "var(--font-display)" }}>
+        {site.nomSite}
+      </strong>
+    </Link>
+  );
+
+  const toggleCategory = (c: Category | null) =>
+    patchSearch({ category: c && s.category?.id === c.id ? null : c, text: c ? "" : s.text });
 
   return (
-    <header
-      ref={headerRef}
-      onMouseLeave={() => setMenu(null)}
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        "border-b border-[var(--line)] bg-white/95 backdrop-blur-xl"
-      }`}
-    >
-      <div className="public-container relative">
-        <div
-          className={`flex min-h-[68px] items-center gap-4 ${
-            ""
-          }`}
-        >
-          {/* Logo */}
-          <Link
-            href={`/${locale}`}
-            className="notranslate flex min-w-0 shrink-0 items-center gap-3"
-            onClick={closeMenus}
-          >
-            <span
-              className="flex h-10 min-w-[54px] max-w-[150px] items-center justify-center overflow-hidden px-1.5"
-            >
-              {site.logo ? (
-                <img
-                  src={imageUrl(site.logo)}
-                  alt={site.nomSite}
-                  className="max-h-8 w-auto max-w-[138px] object-contain"
-                />
-              ) : (
-                <span className="text-sm font-black tracking-tight text-[var(--ink)]">
-                  IH
-                </span>
-              )}
-            </span>
-            <span
-              className={`hidden sm:block ${"text-[var(--ink)]"}`}
-            >
-              <strong
-                className="block max-w-[150px] truncate text-sm font-semibold tracking-tight"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {site.nomSite}
-              </strong>
-            </span>
-          </Link>
+    <>
+      {forced && <div className="fixed inset-0 z-40 hidden bg-black/30 animate-fade lg:block" onClick={() => setForced(false)} />}
 
-          {/* Centre : menus, puis recherche compacte une fois le hero passé */}
-          <div className="hidden min-w-0 flex-1 justify-center lg:flex">
-            {scrolled ? (
-              <NavSearch
-                locale={locale}
-                zones={zones}
-                categories={categories}
-                variant="compact"
-              />
-            ) : (
-              <nav
-                aria-label="Navigation principale"
-                className="flex items-center gap-1"
-              >
-                {MENUS.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-haspopup="true"
-                    aria-expanded={activeMenu === id}
-                    onMouseEnter={() => setMenu(id)}
-                    onClick={() => setMenu((m) => (m === id ? null : id))}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors ${
-                      activeMenu === id ? "bg-[var(--accent-tint)]" : "hover:bg-[var(--canvas-alt)]"
-                    }`}
-                  >
-                    {label}
-                    <ChevronDown
-                      size={14}
-                      aria-hidden="true"
-                      className={`transition-transform ${activeMenu === id ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                ))}
-              </nav>
-            )}
-          </div>
-
-          {/* Droite : recherche mobile, traduction, menu mobile */}
-          <div className="ms-auto flex items-center gap-2">
-            <Link
-              href={`/${locale}/contact`}
-              onClick={closeMenus}
-              className={`hidden rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${"text-[var(--ink)] hover:bg-[var(--canvas-alt)]"}`}
-            >
-              Contact
-            </Link>
-            <button
-              type="button"
-              aria-label="Rechercher"
-              aria-expanded={mobilePanel === "search"}
-              onClick={() =>
-                setMobilePanel((p) => (p === "search" ? null : "search"))
-              }
-              className={`flex h-10 w-10 items-center justify-center rounded-full border lg:hidden ${ghost}`}
-            >
-              <Search size={17} aria-hidden="true" />
-            </button>
-            <GoogleTranslateWidget tone="solid" />
-            <button
-              type="button"
-              aria-label="Menu"
-              aria-expanded={mobilePanel === "menu"}
-              onClick={() => setMobilePanel("menu")}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border lg:hidden ${ghost}`}
-            >
-              <Menu size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        {/* Menu déroulant (bureau) */}
-        {activeMenu && (
-          <div
-            className="absolute inset-x-0 top-full hidden pt-2 lg:block"
-            onClick={(e) =>
-              (e.target as HTMLElement).closest("a") && setMenu(null)
-            }
-          >
-            <div className="origin-top animate-scale-in rounded-3xl border border-[var(--line)] bg-white p-6 shadow-2xl">
-              {activeMenu === "zones" && (
-                <>
-                  <p
-                    className="mb-3 px-3 text-base font-medium text-[var(--ink)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Explorer par zone géographique
-                  </p>
-                  {zones.length ? (
-                    <ul className="grid grid-cols-3 gap-x-4 xl:grid-cols-4">
-                      {zones.slice(0, 16).map((z) => (
-                        <li key={z.id}>
-                          <Link
-                            href={`${searchUrl}?zone=${z.id}`}
-                            className={`${linkClass} flex items-center justify-between gap-2`}
-                          >
-                            <span className="truncate">{z.name}</span>
-                            {z._count?.offers ? (
-                              <span className="text-xs font-medium text-[var(--ink-soft)]">
-                                {z._count.offers}
-                              </span>
-                            ) : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-[var(--ink-soft)]">
-                      Aucune zone disponible pour le moment.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {activeMenu === "categories" && (
-                <>
-                  <p
-                    className="mb-3 px-3 text-base font-medium text-[var(--ink)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Explorer par catégorie
-                  </p>
-                  {categories.length ? (
-                    <ul className="grid grid-cols-3 gap-x-4 xl:grid-cols-4">
-                      {categories.slice(0, 16).map((c) => {
-                        const thumb =
-                          c.images?.[0]?.thumbnailUrl || c.images?.[0]?.url;
-                        return (
-                          <li key={c.id}>
-                            <Link
-                              href={`/${locale}/categories/${c.slug}`}
-                              className={`${linkClass} flex items-center gap-3`}
-                            >
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--canvas-alt)]">
-                                {thumb ? (
-                                  <img
-                                    src={imageUrl(thumb)}
-                                    alt=""
-                                    loading="lazy"
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <BedDouble
-                                    size={16}
-                                    className="text-[var(--ink-soft)]"
-                                  />
-                                )}
-                              </span>
-                              <span className="truncate">{c.name}</span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-[var(--ink-soft)]">
-                      Aucune catégorie disponible pour le moment.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {activeMenu === "inspiration" && (
-                <div className="grid grid-cols-[13rem_1fr] gap-8">
-                  <div>
-                    <p
-                      className="mb-3 px-3 text-base font-medium text-[var(--ink)]"
-                      style={{ fontFamily: "var(--font-display)" }}
+      <header
+        onMouseLeave={() => setMenu(null)}
+        className={`fixed inset-x-0 top-0 z-50 border-b bg-white transition-shadow duration-300 ${
+          scrolled ? "border-[var(--line)] shadow-[0_8px_24px_-14px_rgba(0,0,0,.3)]" : "border-transparent"
+        }`}
+      >
+        <div className="public-container relative">
+          {/* ---------------- BUREAU ---------------- */}
+          <div className="hidden h-20 grid-cols-[1fr_auto_1fr] items-center gap-4 lg:grid">
+            {logo}
+            <div className="flex justify-center">
+              {expanded ? (
+                <nav key="tabs" aria-label="Navigation principale" className="flex items-center gap-2 animate-fade">
+                  {MENUS.map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-haspopup="true"
+                      aria-expanded={menu === id}
+                      onMouseEnter={() => setMenu(id)}
+                      onClick={() => setMenu((m) => (m === id ? null : id))}
+                      className="group relative inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--canvas-alt)]"
                     >
-                      Inspiration voyage
-                    </p>
-                    <Link href={searchUrl} className={linkClass}>
-                      Toutes les offres
-                    </Link>
-                    <p className="px-3 pt-2 text-xs leading-5 text-[var(--ink-soft)]">
-                      Les disponibilités sont vérifiées automatiquement.
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-[var(--ink-soft)]">
-                      Les meilleures offres du moment
-                    </p>
-                    {bestOffers === null ? (
-                      <div className="grid grid-cols-3 gap-4">
-                        {[1, 2, 3].map((i) => (
-                          <div
-                            key={i}
-                            className="h-40 animate-pulse rounded-2xl bg-[var(--canvas-alt)]"
-                          />
-                        ))}
-                      </div>
-                    ) : bestOffers.length ? (
-                      <div className="grid grid-cols-3 gap-4">
-                        {bestOffers.map((o) => {
-                          const photo =
-                            o.photos.find((p) => p.isPrimary) ?? o.photos[0];
-                          const price = startingPrice(o);
-                          return (
-                            <Link
-                              key={o.id}
-                              href={`/${locale}/offers/${o.slug}`}
-                              className="block"
-                            >
-                              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--canvas-alt)]">
-                                {photo ? (
-                                  <img
-                                    src={imageUrl(photo.url)}
-                                    alt=""
-                                    loading="lazy"
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center text-[var(--ink-soft)]">
-                                    <BedDouble size={28} />
-                                  </div>
-                                )}
-                                {activePromotion(o) && (
-                                  <span className="absolute start-2 top-2 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-[var(--on-accent)]">
-                                    Promo
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-2 line-clamp-1 text-sm font-semibold text-[var(--ink)]">
-                                {o.name}
-                              </p>
-                              {price !== null && (
-                                <p className="text-xs text-[var(--ink-soft)]">
-                                  À partir de {formatMoney(price, "TND")}
-                                </p>
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-[var(--ink-soft)]">
-                        Aucune offre à afficher pour le moment.
-                      </p>
-                    )}
-                  </div>
+                      <Icon size={18} aria-hidden="true" className={`transition-transform duration-300 group-hover:-translate-y-0.5 ${menu === id ? "text-[var(--accent-deep)]" : ""}`} />
+                      {label}
+                      <ChevronDown size={14} aria-hidden="true" className={`transition-transform duration-300 ${menu === id ? "rotate-180" : ""}`} />
+                      <span className={`absolute inset-x-3.5 -bottom-0.5 h-0.5 origin-center rounded-full bg-[var(--accent)] transition-transform duration-300 ${menu === id ? "scale-x-100" : "scale-x-0"}`} />
+                    </button>
+                  ))}
+                </nav>
+              ) : (
+                <div key="pill" className="animate-fade">
+                  <CompactSearchPill locale={locale} onClick={() => setForced(true)} />
                 </div>
               )}
             </div>
+            <div className="flex items-center justify-end gap-2">
+              <Link href={`/${locale}/contact`} onClick={closeAll} className="rounded-xl px-3 py-2 text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--canvas-alt)]">
+                Contact
+              </Link>
+              <GoogleTranslateWidget tone="solid" />
+            </div>
           </div>
-        )}
 
-        {/* Recherche mobile */}
-        {mobilePanel === "search" && (
-          <div className="mt-2 rounded-2xl border border-[var(--line)] bg-white p-3 shadow-2xl lg:hidden">
-            <NavSearch
-              locale={locale}
-              zones={zones}
-              categories={categories}
-              variant="stacked"
-            />
+          {/* Grande barre (bureau) — se replie avec animation */}
+          <div className={`hidden transition-[grid-template-rows,opacity] duration-300 ease-out lg:grid ${expanded ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"}`}>
+            <div className={`min-h-0 ${expanded ? "overflow-visible" : "overflow-hidden"}`}>
+              <div className="pb-5 pt-1">
+                <DesktopSearch locale={locale} zones={zones} categories={categories} />
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Menu mobile */}
-      {mobilePanel === "menu" && (
-        <div
-          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobilePanel(null)}
-        >
-          <div
-            className="absolute inset-x-3 top-3 max-h-[calc(100%-24px)] overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl"
-            onClick={(e) => {
-              e.stopPropagation();
-              if ((e.target as HTMLElement).closest("a")) setMobilePanel(null);
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="notranslate font-semibold text-[var(--ink)]">
-                {site.nomSite}
-              </span>
+          {/* Méga-menu (bureau) */}
+          {menu && expanded && (
+            <div className="absolute inset-x-0 top-[76px] z-10 hidden animate-pop lg:block" onClick={(e) => (e.target as HTMLElement).closest("a") && setMenu(null)}>
+              <div className="rounded-3xl border border-[var(--line)] bg-white p-6 shadow-2xl">
+                {menu === "zones" && (
+                  <>
+                    <p className={panelTitle} style={{ fontFamily: "var(--font-display)" }}>Explorer par zone géographique</p>
+                    {zones.length ? (
+                      <ul className="grid grid-cols-3 gap-x-4 xl:grid-cols-4">
+                        {zones.slice(0, 16).map((z) => (
+                          <li key={z.id}>
+                            <Link href={`${searchUrl}?zone=${z.id}`} className={`${linkClass} flex items-center justify-between gap-2`}>
+                              <span className="flex items-center gap-2 truncate"><MapPin size={15} className="shrink-0 text-[var(--accent-deep)]" />{z.name}</span>
+                              {z._count?.offers ? <span className="text-xs font-medium text-[var(--ink-soft)]">{z._count.offers}</span> : null}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-[var(--ink-soft)]">Aucune zone disponible pour le moment.</p>
+                    )}
+                  </>
+                )}
+
+                {menu === "categories" && (
+                  <>
+                    <p className={panelTitle} style={{ fontFamily: "var(--font-display)" }}>Explorer par catégorie</p>
+                    {categories.length ? (
+                      <ul className="grid grid-cols-3 gap-x-4 xl:grid-cols-4">
+                        {categories.slice(0, 16).map((c) => {
+                          const thumb = c.images?.[0]?.thumbnailUrl || c.images?.[0]?.url;
+                          const Icon = categoryIcon(c.name, c.icon);
+                          return (
+                            <li key={c.id}>
+                              <Link href={`/${locale}/categories/${c.slug}`} className={`${linkClass} flex items-center gap-3`}>
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--canvas-alt)]">
+                                  {thumb ? <img src={imageUrl(thumb, `categories/${c.id}`)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Icon size={16} className="text-[var(--ink-soft)]" />}
+                                </span>
+                                <span className="truncate">{c.name}</span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-[var(--ink-soft)]">Aucune catégorie disponible pour le moment.</p>
+                    )}
+                  </>
+                )}
+
+                {menu === "inspiration" && (
+                  <div className="grid grid-cols-[13rem_1fr] gap-8">
+                    <div>
+                      <p className={panelTitle} style={{ fontFamily: "var(--font-display)" }}>Inspiration voyage</p>
+                      <Link href={searchUrl} className={linkClass}>Toutes les offres</Link>
+                      <p className="px-3 pt-2 text-xs leading-5 text-[var(--ink-soft)]">Les disponibilités sont vérifiées automatiquement.</p>
+                    </div>
+                    <div>
+                      <p className="mb-3 text-sm font-semibold text-[var(--ink-soft)]">Les meilleures offres du moment</p>
+                      {bestOffers === null ? (
+                        <div className="grid grid-cols-3 gap-4">
+                          {[1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl bg-[var(--canvas-alt)]" />)}
+                        </div>
+                      ) : bestOffers.length ? (
+                        <div className="grid grid-cols-3 gap-4">
+                          {bestOffers.map((o) => {
+                            const photo = o.photos.find((p) => p.isPrimary) ?? o.photos[0];
+                            const price = startingPrice(o);
+                            return (
+                              <Link key={o.id} href={`/${locale}/offers/${o.slug}`} className="group block">
+                                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--canvas-alt)]">
+                                  {photo ? (
+                                    <img src={imageUrl(photo.url, "offers")} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center text-[var(--ink-soft)]"><BedDouble size={28} /></div>
+                                  )}
+                                  {activePromotion(o) && <span className="absolute start-2 top-2 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-[var(--on-accent)]">Promo</span>}
+                                </div>
+                                <p className="mt-2 line-clamp-1 text-sm font-semibold text-[var(--ink)]">{o.name}</p>
+                                {price !== null && <p className="text-xs text-[var(--ink-soft)]">À partir de {formatMoney(price, "TND")}</p>}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-[var(--ink-soft)]">Aucune offre à afficher pour le moment.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---------------- MOBILE ---------------- */}
+          <div className="lg:hidden">
+            {hero && (
+              <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${topState ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                <div className="min-h-0 overflow-hidden">
+                  <div className="flex h-14 items-center">{logo}</div>
+                  <div className="flex gap-6 overflow-x-auto pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Catégories">
+                    {[null, ...categories.slice(0, 10)].map((c) => {
+                      const active = c ? s.category?.id === c.id : !s.category;
+                      const Icon = c ? categoryIcon(c.name, c.icon) : Compass;
+                      return (
+                        <button
+                          key={c?.id ?? "all"}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => toggleCategory(c)}
+                          className={`flex shrink-0 flex-col items-center gap-1.5 border-b-2 px-1 pb-2 text-xs font-semibold transition-colors ${active ? "border-[var(--ink)] text-[var(--ink)]" : "border-transparent text-[var(--ink-soft)]"}`}
+                        >
+                          <Icon size={26} aria-hidden="true" className={`transition-transform duration-300 ${active ? "scale-110 text-[var(--accent-deep)]" : ""}`} />
+                          <span className="max-w-[84px] truncate">{c?.name ?? "Tout"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2 py-3">
               <button
                 type="button"
-                aria-label="Fermer le menu"
-                onClick={() => setMobilePanel(null)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--canvas-alt)]"
+                onClick={() => setSheet("where")}
+                aria-label="Commencer ma recherche"
+                className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-full border border-[var(--line)] bg-white px-5 text-start shadow-[0_6px_20px_-8px_rgba(0,0,0,.3)] transition-transform active:scale-[.98]"
               >
-                <X size={17} aria-hidden="true" />
+                <Search size={20} className="shrink-0 text-[var(--ink)]" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold text-[var(--ink)]">{mobileTitle}</span>
+                  <span className="block truncate text-xs text-[var(--ink-soft)]">{mobileSub}</span>
+                </span>
+              </button>
+              <button type="button" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[var(--ink)] transition-transform active:scale-90">
+                <Menu size={20} aria-hidden="true" />
               </button>
             </div>
+          </div>
+        </div>
+      </header>
 
-            <Link
-              href={searchUrl}
-              className="mt-4 block rounded-xl bg-[var(--canvas-alt)] px-4 py-3 text-sm font-bold text-[var(--ink)]"
-            >
-              Explorer toutes les offres
-            </Link>
-            <Link
-              href={`/${locale}/contact`}
-              className="mt-2 block rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-bold text-[var(--ink)]"
-            >
-              Contacter l’équipe
-            </Link>
+      <MobileSearchSheet open={sheet !== null} initial={sheet ?? "where"} onClose={closeSheet} locale={locale} zones={zones} categories={categories} />
 
-            <details className="group mt-2 border-b border-[var(--line)]">
-              <summary className="flex cursor-pointer list-none items-center justify-between py-3.5 text-sm font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
-                Lieux à visiter
-                <ChevronDown
-                  size={16}
-                  aria-hidden="true"
-                  className="transition-transform group-open:rotate-180"
-                />
-              </summary>
-              <ul className="pb-2">
-                {zones.map((z) => (
-                  <li key={z.id}>
-                    <Link
-                      href={`${searchUrl}?zone=${z.id}`}
-                      className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--ink-soft)]"
-                    >
-                      {z.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
+      {/* Menu mobile */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[90] bg-black/50 animate-fade lg:hidden" onClick={() => setMenuOpen(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[92dvh] animate-sheet overflow-y-auto overscroll-contain rounded-t-[28px] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              if ((e.target as HTMLElement).closest("a")) setMenuOpen(false);
+            }}
+          >
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--line)]" aria-hidden="true" />
+            <div className="flex items-center justify-between">
+              <span className="notranslate text-lg font-bold text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>{site.nomSite}</span>
+              <button type="button" aria-label="Fermer le menu" onClick={() => setMenuOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--canvas-alt)]"><X size={17} aria-hidden="true" /></button>
+            </div>
 
-            <details className="group border-b border-[var(--line)]">
-              <summary className="flex cursor-pointer list-none items-center justify-between py-3.5 text-sm font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
-                Choses à faire
-                <ChevronDown
-                  size={16}
-                  aria-hidden="true"
-                  className="transition-transform group-open:rotate-180"
-                />
-              </summary>
-              <ul className="pb-2">
-                {categories.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href={`/${locale}/categories/${c.slug}`}
-                      className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--ink-soft)]"
-                    >
-                      {c.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <div className="mt-4 flex justify-center rounded-2xl border border-[var(--line)] bg-[var(--canvas-alt)] p-2"><GoogleTranslateWidget tone="solid" /></div>
+            <Link href={`/${locale}`} className="mt-3 block rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-bold text-[var(--ink)]">Accueil</Link>
+            <Link href={searchUrl} className="mt-2 block rounded-xl bg-[var(--ink)] px-4 py-3 text-center text-sm font-bold text-white">Explorer toutes les offres</Link>
+            <Link href={`/${locale}/contact`} className="mt-2 block rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-bold text-[var(--ink)]">Contacter l’équipe</Link>
+
+            {[
+              { title: "Lieux à visiter", Icon: MapPin, items: zones.map((z) => ({ id: z.id, name: z.name, href: `${searchUrl}?zone=${z.id}` })) },
+              { title: "Choses à faire", Icon: Compass, items: categories.map((c) => ({ id: c.id, name: c.name, href: `/${locale}/categories/${c.slug}` })) },
+            ].map(({ title, Icon, items }) => (
+              <details key={title} className="group mt-2 border-b border-[var(--line)]">
+                <summary className="flex cursor-pointer list-none items-center justify-between py-3.5 text-sm font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2.5"><Icon size={18} className="text-[var(--accent-deep)]" aria-hidden="true" />{title}</span>
+                  <ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" />
+                </summary>
+                <ul className="pb-2">
+                  {items.map((it) => (
+                    <li key={it.id}><Link href={it.href} className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--ink-soft)]">{it.name}</Link></li>
+                  ))}
+                </ul>
+              </details>
+            ))}
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

@@ -6,6 +6,8 @@ function toFormData(values: CategoryFormValues, displayOrder?: number) {
   fd.append('name', values.name.trim());
   fd.append('description', values.description ?? '');
   fd.append('isActive', String(values.isActive));
+  // N'est envoyé que si l'admin a choisi une icône : sans champ `icon` côté backend, rien ne casse.
+  if (values.icon) fd.append('icon', values.icon);
   if (displayOrder !== undefined) fd.append('displayOrder', String(displayOrder));
   values.keepImageIds.forEach((id) => fd.append('keepImageIds', id));
   values.newFiles.forEach((file) => fd.append('images', file));

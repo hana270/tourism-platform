@@ -4,12 +4,43 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
+  const email = 'admin@example.com';
   const password = process.env.SEED_ADMIN_PASSWORD;
-  if (!password || password.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters and must be provided only at seed time.');
-  await prisma.user.upsert({ where: { email }, update: { role: 'ADMIN', status: 'ACTIVE', emailVerifiedAt: new Date() }, create: { email, passwordHash: await bcrypt.hash(password, 12), firstName: 'Site', lastName: 'Administrator', role: 'ADMIN', status: 'ACTIVE', emailVerifiedAt: new Date() } });
-  await prisma.siteSetting.upsert({ where: { key: 'whatsapp_number' }, update: {}, create: { key: 'whatsapp_number', value: '' } });
-  console.log(`Admin seed completed for ${email}`);
+
+  if (!password || password.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters and must be provided only at seed time.');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const admin = await prisma.user.upsert({
+    where: { email },
+    update: {
+      passwordHash: hashedPassword,
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      emailVerifiedAt: new Date(),
+    },
+    create: {
+      email,
+      passwordHash: hashedPassword,
+      firstName: 'Admin',
+      lastName: 'Ihost',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      emailVerifiedAt: new Date(),
+      username: 'admin',
+    },
+  });
+
+  console.log(`Admin seed completed for ${admin.email}`);
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

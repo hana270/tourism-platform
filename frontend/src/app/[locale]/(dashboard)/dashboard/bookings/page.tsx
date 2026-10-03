@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from '@/i18n/translate';
 import Swal from 'sweetalert2';
+import Link from 'next/link';
+import { CalendarDays, LockKeyhole } from 'lucide-react';
+import { useLocale } from '@/i18n/translate';
 import { OperationsApi, Reservation } from '@/lib/operations.api';
 
 export default function BookingsPage() {
   const t = useTranslations('bookings');
+  const locale = useLocale();
   const [rows, setRows] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
@@ -33,6 +37,10 @@ export default function BookingsPage() {
   return (
     <div className="page-transition">
       <div className="mb-6">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 shrink-0 text-emerald-700" size={19} /><div><p className="text-sm font-bold text-emerald-900">Blocage automatique activé</p><p className="mt-1 text-xs leading-5 text-emerald-800">Une offre est retirée des disponibilités client dès que la réservation est confirmée et payée.</p></div></div>
+          <Link href={`/${locale}/dashboard/availability`} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-900 shadow-sm"><CalendarDays size={15} /> Vérifier le calendrier</Link>
+        </div>
         <h1 className="font-display text-2xl font-semibold text-ink">{t('title')}</h1>
         <p className="mt-1 text-sm text-ink-soft">{t('subtitle')}</p>
       </div>

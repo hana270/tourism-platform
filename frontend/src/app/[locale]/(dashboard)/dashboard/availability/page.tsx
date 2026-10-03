@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, LockKeyhole, RefreshCw } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, LockKeyhole, RefreshCw } from 'lucide-react';
 import { useLocale, useTranslations } from '@/i18n/translate';
 import Swal from 'sweetalert2';
 import { OperationsApi, AvailabilityBlock } from '@/lib/operations.api';
@@ -17,6 +17,7 @@ export default function AvailabilityPage() {
   const [offerId, setOfferId] = useState('');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
+  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +40,21 @@ export default function AvailabilityPage() {
     const matchesTo = !filterTo || row.startDate.slice(0, 10) <= filterTo;
     return matchesOffer && matchesFrom && matchesTo;
   }), [rows, offerId, filterFrom, filterTo]);
+
+  const blockedDays = useMemo(() => {
+    const days = new Set<string>();
+    filtered.forEach((row) => {
+      const cursor = new Date(row.startDate); const end = new Date(row.endDate);
+      while (cursor <= end) { days.add(cursor.toISOString().slice(0, 10)); cursor.setDate(cursor.getDate() + 1); }
+    });
+    return days;
+  }, [filtered]);
+  const firstWeekday = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const monthDays: Array<number | null> = [
+    ...Array.from({ length: firstWeekday === 0 ? 6 : firstWeekday - 1 }, (): number | null => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
 
   return (
     <div className="page-transition">
@@ -63,7 +79,16 @@ export default function AvailabilityPage() {
         <div><label className="label">Jusqu’au</label><input className="input" type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} /></div>
       </div>
 
+      <section className="card mb-5 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div><p className="text-xs font-bold uppercase tracking-wider text-ink-faint">Calendrier de contrôle</p><h2 className="mt-1 font-display text-xl font-bold text-ink">{month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</h2></div>
+          <div className="flex gap-2"><button className="btn-icon h-9 w-9" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Mois précédent"><ChevronLeft size={16} /></button><button className="btn-icon h-9 w-9" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Mois suivant"><ChevronRight size={16} /></button></div>
+        </div>
+        <div className="grid grid-cols-7 border-b border-border bg-surface-alt text-center text-[10px] font-bold uppercase tracking-wider text-ink-faint">{['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map((day) => <div key={day} className="py-2">{day}</div>)}</div>
+        <div className="grid grid-cols-7 gap-px bg-border p-px">{monthDays.map((day, index) => { const key = day ? `${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : `empty-${index}`; const blocked = Boolean(day && blockedDays.has(key)); return <div key={key} className={`v11-calendar-day p-2 ${blocked ? 'is-blocked' : ''}`}>{day && <><span className="text-xs font-bold">{day}</span>{blocked && <span className="mt-2 block text-[10px] font-bold">Bloquée</span>}</>}</div>; })}</div>
+      </section>
       <div className="card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4"><h2 className="font-display font-bold text-ink">Périodes bloquées</h2><span className="badge bg-surface-alt text-ink-soft">{filtered.length}</span></div>
         <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
           {!loading && filtered.map((row) => (
             <article key={row.id} className="rounded-xl border border-border bg-surface-alt/40 p-4">

@@ -42,27 +42,40 @@ api.interceptors.response.use(undefined, async (error) => {
   return Promise.reject(error);
 });
 
-export function imageUrl(path: string | null | undefined): string {
+export function imageUrl(path: string | null | undefined, fallbackFolder?: string): string {
   if (!path) return '';
   const cleanPath = String(path).trim().replace(/\\/g, '/');
-  const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim();
-  const hasCdn = !!configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin);
-  if (!hasCdn) {
-    // URL absolue vers le backend local -> chemin relatif (servi via le proxy Next)
-    const local = cleanPath.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/uploads\/.*)$/i);
-    if (local) return local[1];
-    if (cleanPath.startsWith('/uploads/')) return cleanPath;
-  }
-  if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
-  const assetOrigin = (
-    configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
-      ? configuredAssetOrigin
-      : API_ORIGIN
-  )
+  const configuredAssetOrigin = process.env.NEXT_PUBLIC_ASSET_ORIGIN?.trim().replace(/\/$/, '');
+  const assetOrigin = (configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
+    ? configuredAssetOrigin
+    : API_ORIGIN)
     .replace(/\/api\/v1\/?$/i, '')
     .replace(/\/api\/?$/i, '')
     .replace(/\/$/, '');
-  return `${assetOrigin}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  // Les anciens enregistrements peuvent contenir l’URL complète de Render.
+  // On réutilise uniquement /uploads pour permettre le basculement vers un CDN
+  // sans migration destructive de la base de données.
+  if (/^(https?:)?\/\//i.test(cleanPath)) {
+    try {
+      const parsed = new URL(cleanPath, assetOrigin);
+      if (parsed.pathname.startsWith('/uploads/')) return `${assetOrigin}${parsed.pathname}${parsed.search}`;
+      return cleanPath;
+    } catch {
+      return cleanPath;
+    }
+  }
+  if (/^(data:|blob:)/i.test(cleanPath)) return cleanPath;
+  // L’API peut renvoyer /uploads/offers/file.webp, uploads/offers/file.webp
+  // ou seulement offers/file.webp. On normalise les trois formes.
+  const normalizedPath = cleanPath.startsWith('/uploads/')
+    ? cleanPath
+    : cleanPath.startsWith('uploads/')
+      ? `/${cleanPath}`
+      : `/uploads/${fallbackFolder ? `${fallbackFolder.replace(/^\/+|\/+$/g, '')}/` : ''}${cleanPath.replace(/^\/+/, '')}`;
+  // En local, Next proxy /uploads. En production, un CDN explicite est utilisé.
+  return configuredAssetOrigin && !/example\.com|localhost:4000/i.test(configuredAssetOrigin)
+    ? `${assetOrigin}${normalizedPath}`
+    : normalizedPath;
 }
 
 export type ApiEnvelope<T> = {

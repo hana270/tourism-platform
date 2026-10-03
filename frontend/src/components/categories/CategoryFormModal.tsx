@@ -5,12 +5,14 @@ import { useTranslations } from "@/i18n/translate";
 import { ImagePlus, Star, Trash2, X } from "lucide-react";
 import { Category, CategoryFormValues } from "@/types/category";
 import { imageUrl } from "@/lib/api";
+import { CategoryIconPicker } from "@/components/categories/CategoryIconPicker";
 
 type ExistingImage = { id: string; previewUrl: string };
 const emptyValues: CategoryFormValues = {
   name: "",
   description: "",
   isActive: true,
+  icon: "",
   keepImageIds: [],
   newFiles: [],
 };
@@ -55,6 +57,7 @@ export function CategoryFormModal({
         name: initial.name,
         description: initial.description ?? "",
         isActive: initial.isActive,
+        icon: initial.icon ?? "",
         keepImageIds: first ? [first.id] : [],
         newFiles: [],
       });
@@ -146,6 +149,11 @@ export function CategoryFormModal({
               placeholder={t("descriptionPlaceholder")}
             />
           </Field>
+          <CategoryIconPicker
+            name={values.name}
+            value={values.icon}
+            onChange={(icon) => setValues((v) => ({ ...v, icon }))}
+          />
           <div>
             <div className="mb-2 flex items-center justify-between">
               <div>

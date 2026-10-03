@@ -422,3 +422,284 @@ body { top: 0 !important; }
     display: none;
   }
 }
+
+@media (max-width: 640px) {
+  .public-shell header .google-translate-widget { display: none !important; }
+  .public-shell header .public-container { width: calc(100% - 20px); }
+  .public-shell header .nav-action { min-height: 40px; }
+  .public-shell header .logo-label { display: none; }
+  .public-shell .public-section { padding-block: 48px; }
+  .v11-calendar-day { min-height: 58px; }
+}
+
+/* IHOST 2026 — palette publique premium et affichage mobile stable. */
+:root {
+  --navy: #102a43;
+  --navy-deep: #0b1f33;
+  --teal: #0b7285;
+  --teal-soft: #e7f6f7;
+  --sand: #f8f5ef;
+  --promo: #d94f45;
+  --promo-soft: #fff0ed;
+}
+.public-shell {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaf7 48%, #ffffff 100%) !important;
+  color: var(--navy);
+}
+.public-shell h1, .public-shell h2, .public-shell h3, .public-shell h4 { color: var(--navy); }
+.public-shell header { border-color: rgba(16,42,67,.10) !important; box-shadow: 0 8px 30px rgba(16,42,67,.07); }
+.public-shell article { border-color: rgba(16,42,67,.10); box-shadow: 0 14px 38px rgba(16,42,67,.07); }
+.public-shell article:hover { border-color: rgba(11,114,133,.28); box-shadow: 0 24px 60px rgba(16,42,67,.14); }
+.public-shell .public-container { max-width: 1280px; }
+.public-shell .public-image-fallback { background: linear-gradient(135deg, #edf8f8 0%, #f8f5ef 100%); color: var(--teal); }
+.public-shell .chip-row a:hover { border-color: var(--teal) !important; background: var(--teal-soft) !important; }
+@media (max-width: 767px) {
+  .public-shell header { background: rgba(255,255,255,.97) !important; }
+  .public-shell h1 { font-size: clamp(2.35rem, 11vw, 3.5rem); }
+  .public-shell h2 { font-size: clamp(1.8rem, 8vw, 2.5rem); }
+  .public-shell article { border-radius: 22px; }
+  .public-shell article .p-5 { padding: 1.1rem; }
+  .public-shell .public-container { width: calc(100% - 24px); }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* À AJOUTER à la fin de votre globals.css */
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+
+.animate-pop   { animation: pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-fade  { animation: fade-in 0.25s ease both; }
+.animate-sheet { animation: sheet-up 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Apparition au défilement */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-fade, .animate-sheet { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ==========================================================================
+   IHOST — thème public unique (blanc + jaune)
+
+   À FAIRE dans globals.css :
+   1) SUPPRIMER ces blocs (ils imposent marine/turquoise et écrasent le jaune) :
+        - "IHOST v11 — premium editorial travel system"   (jusqu'à .v11-calendar-day … fin du @media 640px)
+          ⚠ gardez .v11-kpi, .v11-calendar-day et .admin-shell si votre dashboard les utilise
+        - "IHOST 2026 — palette publique premium…"        (tout le bloc, jusqu'au @media 767px inclus)
+        - "Animations d'apparition au défilement (progressives, sans JS)" (le @supports animation-timeline)
+        - l'ancien bloc "À AJOUTER à la fin de votre globals.css" (animations)
+   2) COLLER ce fichier à la fin de globals.css.
+   ========================================================================== */
+
+:root {
+  --promo: #d94f45;
+  --promo-soft: #fff0ed;
+}
+
+.public-shell {
+  background: #ffffff !important;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+.public-shell h1,
+.public-shell h2,
+.public-shell h3,
+.public-shell h4 {
+  color: var(--ink);
+  letter-spacing: -0.025em;
+}
+.public-shell .public-container { max-width: 1320px; }
+
+/* Navbar : blanche, ombre neutre (plus de bleu marine) */
+.public-shell header { border-color: var(--line) !important; box-shadow: none; }
+.public-shell header > div { max-width: none; }
+
+/* Cartes : bordure chaude + ombre neutre */
+.public-shell article {
+  border-color: var(--line);
+  box-shadow: 0 10px 30px rgba(26, 26, 26, 0.06);
+}
+.public-shell article:hover {
+  border-color: var(--accent-soft);
+  box-shadow: 0 24px 56px -18px rgba(26, 26, 26, 0.22);
+}
+.public-shell .public-image-fallback {
+  background: linear-gradient(135deg, var(--accent-tint) 0%, #fff 100%);
+  color: var(--accent-deep);
+}
+.public-shell .chip-row a:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent-tint) !important;
+}
+
+@media (max-width: 767px) {
+  .public-shell h1 { font-size: clamp(2.2rem, 10vw, 3.25rem); line-height: 1.06; }
+  .public-shell h2 { font-size: clamp(1.6rem, 7vw, 2.25rem); line-height: 1.15; }
+  .public-shell article { border-radius: 22px; }
+  .public-shell .public-container { width: calc(100% - 24px); }
+}
+
+/* Mobile : le sélecteur de langue est dans le menu, pas dans la barre */
+@media (max-width: 640px) {
+  .public-shell header .google-translate-widget { display: none !important; }
+}
+
+/* ---------- Animations ---------- */
+@keyframes pop-in   { from { opacity: 0; transform: translateY(-8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+.animate-pop   { animation: pop-in .22s cubic-bezier(.2, .8, .2, 1) both; }
+.animate-fade  { animation: fade-in .25s ease both; }
+.animate-sheet { animation: sheet-up .38s cubic-bezier(.22, 1, .36, 1) both; }
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.22, 1, .36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-fade, .animate-sheet, .public-reveal { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+
+
+
+
+/* ==========================================================================
+   IHOST — thème public unique (blanc + jaune)
+
+   À FAIRE dans globals.css :
+   1) SUPPRIMER ces blocs (ils imposent marine/turquoise et écrasent le jaune) :
+        - "IHOST v11 — premium editorial travel system"   (jusqu'à .v11-calendar-day … fin du @media 640px)
+          ⚠ gardez .v11-kpi, .v11-calendar-day et .admin-shell si votre dashboard les utilise
+        - "IHOST 2026 — palette publique premium…"        (tout le bloc, jusqu'au @media 767px inclus)
+        - "Animations d'apparition au défilement (progressives, sans JS)" (le @supports animation-timeline)
+        - l'ancien bloc "À AJOUTER à la fin de votre globals.css" (animations)
+   2) COLLER ce fichier à la fin de globals.css.
+   ========================================================================== */
+
+:root {
+  --promo: #d94f45;
+  --promo-soft: #fff0ed;
+}
+
+.public-shell {
+  background: #ffffff !important;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+/* :where() = priorité zéro : les classes Tailwind (text-white, etc.) gagnent toujours */
+:where(.public-shell) :is(h1, h2, h3, h4) {
+  color: var(--ink);
+  letter-spacing: -0.025em;
+}
+.public-shell .public-container { max-width: 1320px; }
+
+/* Navbar : blanche, ombre neutre (plus de bleu marine) */
+.public-shell header { border-color: var(--line) !important; box-shadow: none; }
+.public-shell header > div { max-width: none; }
+
+/* Cartes : bordure chaude + ombre neutre */
+.public-shell article {
+  border-color: var(--line);
+  box-shadow: 0 10px 30px rgba(26, 26, 26, 0.06);
+}
+.public-shell article:hover {
+  border-color: var(--accent-soft);
+  box-shadow: 0 24px 56px -18px rgba(26, 26, 26, 0.22);
+}
+.public-shell .public-image-fallback {
+  background: linear-gradient(135deg, var(--accent-tint) 0%, #fff 100%);
+  color: var(--accent-deep);
+}
+.public-shell .chip-row a:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent-tint) !important;
+}
+
+@media (max-width: 767px) {
+  :where(.public-shell) h1 { font-size: clamp(2.2rem, 10vw, 3.25rem); line-height: 1.06; }
+  :where(.public-shell) h2 { font-size: clamp(1.6rem, 7vw, 2.25rem); line-height: 1.15; }
+  .public-shell article { border-radius: 22px; }
+  .public-shell .public-container { width: calc(100% - 24px); }
+}
+
+/* Mobile : le sélecteur de langue est dans le menu, pas dans la barre */
+@media (max-width: 640px) {
+  .public-shell header .google-translate-widget { display: none !important; }
+}
+
+/* ---------- Animations ---------- */
+@keyframes pop-in   { from { opacity: 0; transform: translateY(-8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+.animate-pop   { animation: pop-in .22s cubic-bezier(.2, .8, .2, 1) both; }
+.animate-fade  { animation: fade-in .25s ease both; }
+.animate-sheet { animation: sheet-up .38s cubic-bezier(.22, 1, .36, 1) both; }
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.22, 1, .36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-fade, .animate-sheet, .public-reveal { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}

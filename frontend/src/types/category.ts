@@ -14,6 +14,8 @@ export type Category = {
   slug: string;
   description: string | null;
   isActive: boolean;
+  /** Clé d'icône choisie par l'admin (voir lib/category-icons.ts). Optionnelle. */
+  icon?: string | null;
   displayOrder: number;
   createdAt?: string;
   updatedAt?: string;
@@ -26,6 +28,7 @@ export type CategoryFormValues = {
   name: string;
   description: string;
   isActive: boolean;
+  icon: string;
   keepImageIds: string[];
   newFiles: File[];
 };

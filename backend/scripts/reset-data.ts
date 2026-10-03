@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs/promises';
-import path from 'path';
+import { resetUploadDirectories } from '../src/lib/upload-storage';
 
 const prisma = new PrismaClient();
 const all = process.argv.includes('--all');
@@ -19,20 +18,20 @@ async function main() {
     'categories',
     'zones_geo',
     'audit_logs',
-    ...(all ? ['email_tokens', 'sessions', 'site_settings', 'users'] : []),
+    // Ces trois modèles Prisma n'ont pas de @@map : PostgreSQL conserve donc
+    // leurs noms exacts avec majuscules et guillemets.
+    ...(all ? ['EmailToken', 'Session', 'site_settings', 'User'] : []),
   ];
 
+  console.warn(`Réinitialisation destructive : ${tables.join(', ')}`);
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE ${tables.map((table) => `"${table}"`).join(', ')} RESTART IDENTITY CASCADE`,
   );
-
-  for (const directory of ['offers', 'categories']) {
-    await fs.rm(path.join(process.cwd(), 'uploads', directory), { recursive: true, force: true });
-  }
+  await resetUploadDirectories();
 
   console.log(all
-    ? 'Toutes les données, comptes et réglages ont été supprimés.'
-    : 'Les données métier ont été supprimées ; les comptes et réglages sont conservés.');
+    ? 'Toutes les données, comptes, réglages et médias ont été supprimés.'
+    : 'Les données métier et leurs médias ont été supprimés ; les comptes et réglages sont conservés.');
 }
 
 main()

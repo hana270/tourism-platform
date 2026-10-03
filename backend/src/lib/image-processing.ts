@@ -1,14 +1,12 @@
-import path from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
 import crypto from 'crypto';
-
-const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'categories');
+import { uploadPath, uploadUrl } from './upload-storage';
 
 const VARIANTS = {
-  thumbnail: { width: 400, height: 300, quality: 70 },
-  medium: { width: 800, height: 600, quality: 78 },
-  large: { width: 1600, height: 1200, quality: 82 },
+  thumbnail: { width: 480, height: 360, quality: 72 },
+  medium: { width: 960, height: 720, quality: 82 },
+  large: { width: 1800, height: 1350, quality: 86 },
 } as const;
 
 export type ImageVariants = {
@@ -22,27 +20,19 @@ async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-export async function processCategoryImage(
-  buffer: Buffer,
-  categoryId: string,
-): Promise<ImageVariants> {
-  const dir = path.join(UPLOAD_ROOT, categoryId);
+async function writeVariants(buffer: Buffer, folder: string, id: string = crypto.randomUUID()): Promise<ImageVariants> {
+  const dir = uploadPath(folder, id);
   await ensureDir(dir);
-
-  const fileId = crypto.randomUUID();
   const urls: Record<string, string> = {};
 
   for (const [name, cfg] of Object.entries(VARIANTS)) {
-    const filename = `${fileId}-${name}.webp`;
-    const filepath = path.join(dir, filename);
-
+    const filename = `${name}.webp`;
     await sharp(buffer, { limitInputPixels: 80_000_000 })
       .rotate()
-      .resize(cfg.width, cfg.height, { fit: 'cover', position: 'centre' })
+      .resize(cfg.width, cfg.height, { fit: 'cover', position: 'centre', withoutEnlargement: true })
       .webp({ quality: cfg.quality })
-      .toFile(filepath);
-
-    urls[name] = `/uploads/categories/${categoryId}/${filename}`;
+      .toFile(uploadPath(folder, id, filename));
+    urls[name] = uploadUrl(folder, id, filename);
   }
 
   return {
@@ -53,7 +43,20 @@ export async function processCategoryImage(
   };
 }
 
+export function processOfferImage(buffer: Buffer) {
+  return writeVariants(buffer, 'offers');
+}
+
+export function processCategoryImage(buffer: Buffer, categoryId: string) {
+  return writeVariants(buffer, 'categories', categoryId);
+}
+
+export async function deleteOfferImage(url: string) {
+  const normalized = url.replace(/^\/uploads\//, '').split('/').map(decodeURIComponent);
+  if (normalized[0] !== 'offers' || normalized.length < 3) return;
+  await fs.rm(uploadPath('offers', normalized[1]), { recursive: true, force: true });
+}
+
 export async function deleteCategoryImages(categoryId: string) {
-  const dir = path.join(UPLOAD_ROOT, categoryId);
-  await fs.rm(dir, { recursive: true, force: true });
+  await fs.rm(uploadPath('categories', categoryId), { recursive: true, force: true });
 }

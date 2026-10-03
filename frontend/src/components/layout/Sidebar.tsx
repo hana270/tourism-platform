@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { SiteSettingsApi, HomepageSettings } from '@/lib/site-settings.api';
+import { imageUrl } from '@/lib/api';
 import {
   navItems,
   navSections,
@@ -24,6 +26,11 @@ export function Sidebar() {
   const locale = useLocale();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [site, setSite] = useState<HomepageSettings>({ logo: '', nomSite: 'IHOST', photoCouverture: '', titreAccueil: '', sousTitre: '' });
+
+  useEffect(() => {
+    SiteSettingsApi.homepage().then(setSite).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     setCollapsed(
@@ -133,14 +140,14 @@ export function Sidebar() {
             : 'gap-3 px-5',
         )}
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent font-display text-sm font-bold text-accent-contrast">
-          IH
+        <span className="flex h-10 max-w-[154px] shrink-0 items-center justify-start overflow-visible bg-transparent p-0 shadow-none">
+          {site.logo ? <img src={imageUrl(site.logo)} alt={site.nomSite} className="block max-h-9 w-auto max-w-[154px] object-contain bg-transparent" /> : <span className="font-display text-sm font-bold text-ink">IH</span>}
         </span>
 
         {!collapsed && (
           <div className="overflow-hidden leading-tight">
             <p className="truncate font-display text-[15px] font-semibold text-ink">
-              IHOST
+              {site.nomSite}
             </p>
 
             <p className="truncate text-[11px] text-ink-faint">

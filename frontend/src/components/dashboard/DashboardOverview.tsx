@@ -82,7 +82,7 @@ export function DashboardOverview({ locale }: { locale: string }) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="admin-shell page-transition space-y-6 rounded-2xl p-1">
       {error && (
         <div className="card flex flex-wrap items-center justify-between gap-3 border-danger p-4 text-sm text-danger">
           <span>{error}</span>
@@ -97,7 +97,7 @@ export function DashboardOverview({ locale }: { locale: string }) {
           <Link
             key={label}
             href={href}
-            className="card dashboard-card p-5"
+            className="card dashboard-card v11-kpi p-5"
             style={{ animationDelay: `${index * 60}ms` }}
           >
             <div className="mb-3 flex items-center justify-between">

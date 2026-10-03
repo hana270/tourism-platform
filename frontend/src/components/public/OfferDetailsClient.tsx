@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/i18n/translate';
-import { ArrowLeft, CheckCircle2, ExternalLink, MapPin, MessageCircle, Star, Users, Tag } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ExternalLink, MapPin, MessageCircle, Moon, Star, Sun, Tag, Users } from 'lucide-react';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { BookingModal } from '@/components/public/BookingModal';
 import { OffersApi } from '@/lib/offers.api';
 import { Offer } from '@/types/offer';
 import { imageUrl } from '@/lib/api';
+import { addDaysISO, daysBetween, todayISO } from '@/lib/dates';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 
 function priceRows(o: Offer) {
@@ -17,79 +18,196 @@ function priceRows(o: Offer) {
     ['Demi-pension', o.halfBoardPrice],
     ['Pension complète', o.fullBoardPrice],
     ['All Inclusive Soft', o.allInclusivePrice],
-  ].filter(([,v])=>v!=null) as [string,string|number][];
+  ].filter(([, v]) => v != null) as [string, string | number][];
 }
 
+const input = 'h-12 w-full rounded-xl border border-[var(--line)] bg-white px-3 text-sm font-semibold text-[var(--ink)] outline-none transition focus:border-[var(--ink)]';
+const label = 'mb-1 block text-xs font-bold text-[var(--ink-soft)]';
+
 export default function OfferDetailsClient({ slug }: { slug: string }) {
-  const locale=useLocale();
-  const [offer,setOffer]=useState<Offer|null>(null);
-  const [loading,setLoading]=useState(true);
-  const [booking,setBooking]=useState(false);
-  const [start,setStart]=useState('');
-  const [end,setEnd]=useState('');
-  const [guests,setGuests]=useState(2);
+  const locale = useLocale();
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [multiDay, setMultiDay] = useState(false);
+  const [guests, setGuests] = useState(2);
+  const [active, setActive] = useState(0);
 
-  useEffect(()=>{ OffersApi.getBySlug(slug,locale).then(setOffer).catch(()=>setOffer(null)).finally(()=>setLoading(false)); },[slug,locale]);
+  useEffect(() => {
+    OffersApi.getBySlug(slug, locale).then(setOffer).catch(() => setOffer(null)).finally(() => setLoading(false));
+  }, [slug, locale]);
 
-  if(loading) return <main className="min-h-screen bg-slate-50"><div className="h-20 bg-slate-950"/><div className="mx-auto max-w-6xl animate-pulse p-5"><div className="h-[460px] rounded-3xl bg-slate-200"/></div></main>;
-  if(!offer) return <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6"><div className="text-center"><h1 className="text-2xl font-black">Offre introuvable</h1><Link href={`/${locale}`} className="mt-4 inline-flex rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white">Retour à l&apos;accueil</Link></div></main>;
+  if (loading) {
+    return (
+      <main className="public-shell min-h-screen">
+        <PublicHeader />
+        <div className="public-container animate-pulse pt-32"><div className="h-[460px] rounded-3xl bg-[var(--canvas-alt)]" /></div>
+      </main>
+    );
+  }
+  if (!offer) {
+    return (
+      <main className="public-shell flex min-h-screen items-center justify-center p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Offre introuvable</h1>
+          <Link href={`/${locale}`} className="mt-4 inline-flex rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-bold text-[var(--on-accent)]">Retour à l&apos;accueil</Link>
+        </div>
+      </main>
+    );
+  }
 
-  const photos=offer.photos.length?offer.photos:[];
-  const prices=priceRows(offer);
+  const photos = offer.photos;
+  const prices = priceRows(offer);
+  const isHotel = offer.isHotel;
+  const rangeMode = isHotel || multiDay;
+  const today = todayISO();
+  const nights = rangeMode && start && end ? daysBetween(start, end) : 0;
+  const canReserve = isHotel ? !!start && !!end && end > start : !!start && (!multiDay || (!!end && end > start));
+  const hint = !start ? 'Choisissez une date' : rangeMode && (!end || end <= start) ? 'Choisissez un départ après l’arrivée' : '';
+
   const now = Date.now();
   const promotion = offer.promotions?.find((p) => new Date(p.startDate).getTime() <= now && new Date(p.endDate).getTime() >= now) ?? null;
   const discount = promotion && Number(promotion.oldPrice) > 0 ? Math.round((1 - Number(promotion.newPrice) / Number(promotion.oldPrice)) * 100) : 0;
   const jsonLd = {
-    '@context':'https://schema.org',
-    '@type':'Product',
-    name:offer.name,
-    description:offer.description || undefined,
-    image:offer.photos.map(p=>imageUrl(p.url)),
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: offer.name,
+    description: offer.description || undefined,
+    image: offer.photos.map((p) => imageUrl(p.url, 'offers')),
     offers: {
-      '@type':'Offer',
-      priceCurrency:'TND',
-      price: offer.isHotel ? Number(prices[0]?.[1] || 0) : Number(offer.price),
-      availability: offer.isHotel ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+      '@type': 'Offer',
+      priceCurrency: 'TND',
+      price: isHotel ? Number(prices[0]?.[1] || 0) : Number(offer.price),
+      availability: isHotel ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
       url: typeof window !== 'undefined' ? window.location.href : undefined,
     },
   };
 
+  function onStart(value: string) {
+    setStart(value);
+    if (isHotel) setEnd(value ? addDaysISO(value, 1) : '');
+    else if (multiDay && end && end <= value) setEnd('');
+  }
+  function toggleMulti(next: boolean) {
+    setMultiDay(next);
+    setEnd(next && start ? addDaysISO(start, 1) : '');
+  }
+  const seg = (on: boolean) => `flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2.5 text-xs font-bold transition-all ${on ? 'bg-[var(--ink)] text-white shadow' : 'text-[var(--ink-soft)] hover:text-[var(--ink)]'}`;
+
   return (
     <main className="public-shell">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <div className="relative min-h-[150px] bg-slate-950"><PublicHeader/><div className="h-[150px]"/></div>
-      <div className="public-container -mt-10 relative z-10 pb-20">
-        <div className="mb-5"><Link href={`/${locale}/search`} className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-950"><ArrowLeft size={14}/> Retour aux offres</Link></div>
-        <div className="overflow-hidden rounded-[30px] bg-white shadow-xl">
-          <div className="grid lg:grid-cols-[1.45fr_.75fr]">
-            <div className="grid gap-1 bg-slate-100 sm:grid-cols-2">
-              {photos.slice(0,5).map((p,i)=><div key={p.id||p.url} className={`${i===0?'sm:col-span-2 aspect-[16/8]':'aspect-[4/3]'} overflow-hidden bg-slate-100`}><RemoteImage src={p.url} alt={p.altText||offer.name} className="h-full w-full"/></div>)}
-            </div>
-            <div className="p-6 sm:p-8">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">{offer.category?.name}{offer.isHotel&&offer.stars?<><span>·</span><span className="flex items-center gap-1 text-amber-600"><Star size={12} fill="currentColor"/>{offer.stars} étoiles</span></>:null}</div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">{offer.name}</h1>
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span className="inline-flex items-center gap-1"><MapPin size={14}/>{offer.zone?.name}{offer.address?` · ${offer.address}`:''}</span>{!offer.isHotel&&offer.capacity&&<span className="inline-flex items-center gap-1"><Users size={14}/>Jusqu&apos;à {offer.capacity} personnes</span>}</div>
-              {promotion && <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-700"><Tag size={14}/> Offre spéciale {discount > 0 ? `−${discount}%` : ''}</div><div className="mt-2 flex items-end gap-3"><span className="text-sm text-emerald-700/60 line-through">{Number(promotion.oldPrice).toFixed(0)} TND</span><strong className="text-2xl font-black text-emerald-900">{Number(promotion.newPrice).toFixed(0)} TND</strong></div><p className="mt-1 text-[11px] text-emerald-700">Promotion valable jusqu’au {new Date(promotion.endDate).toLocaleDateString(locale === 'fr' ? 'fr-TN' : 'en-TN')}.</p></div>}
-              <p className="mt-6 whitespace-pre-line text-sm leading-7 text-slate-600">{offer.description}</p>
-              {!!offer.customFields?.length && <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-black text-slate-950">Informations pratiques</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{offer.customFields.map(field => <div key={field.id ?? field.fieldName} className="rounded-xl bg-slate-50 p-4"><p className="text-sm font-extrabold text-slate-950">{field.fieldName}</p><p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{field.value}</p></div>)}</div></section>}
+      <PublicHeader />
 
-              {offer.isHotel ? <div className="mt-7 rounded-2xl bg-slate-50 p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tarifs hôteliers</p><div className="mt-3 grid gap-2">{prices.map(([label,value])=><div key={label} className="flex items-center justify-between border-b border-slate-200 py-2 last:border-0"><span className="text-sm text-slate-600">{label}</span><strong className="text-sm text-slate-950">{Number(value).toFixed(0)} TND</strong></div>)}</div><p className="mt-3 text-[11px] text-amber-700">Disponibilité sur demande — confirmation par l&apos;administrateur.</p></div>:
-              <div className="mt-7 rounded-2xl bg-slate-950 p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-wider text-white/50">Tarif</p><div className="mt-1 text-3xl font-black">{Number(offer.price).toFixed(0)} <span className="text-sm font-medium text-white/50">TND</span></div><p className="mt-1 text-[11px] text-white/50">Disponibilité gérée automatiquement.</p></div>}
+      <div className="public-container pb-20 pt-28 sm:pt-32">
+        <Link href={`/${locale}/search`} className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-bold text-[var(--ink)] transition-colors hover:border-[var(--ink)]">
+          <ArrowLeft size={15} /> Retour aux offres
+        </Link>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <label><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Arrivée</span><input type="date" value={start} onChange={e=>setStart(e.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-slate-900"/></label>
-                <label><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Départ</span><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-slate-900"/></label>
+        <div className="grid gap-8 lg:grid-cols-[1.5fr_.8fr] lg:items-start">
+          {/* Galerie + contenu */}
+          <div>
+            <div className="overflow-hidden rounded-[28px] bg-[var(--canvas-alt)]">
+              <div className="aspect-[16/10]">
+                {photos[active] && <RemoteImage key={photos[active].url} src={photos[active].url} folder="offers" alt={photos[active].altText || offer.name} className="h-full w-full animate-fade" />}
               </div>
-              <label className="mt-3 block"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Voyageurs</span><input type="number" min={1} value={guests} onChange={e=>setGuests(Number(e.target.value)||1)} className="h-12 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-slate-900"/></label>
+            </div>
+            {photos.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {photos.slice(0, 8).map((p, i) => (
+                  <button key={p.id || p.url} type="button" onClick={() => setActive(i)} aria-label={`Photo ${i + 1}`} className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 transition-all sm:h-20 sm:w-28 ${i === active ? 'border-[var(--ink)]' : 'border-transparent opacity-70 hover:opacity-100'}`}>
+                    <RemoteImage src={p.url} folder="offers" alt="" className="h-full w-full" />
+                  </button>
+                ))}
+              </div>
+            )}
 
-              <button type="button" onClick={()=>setBooking(true)} disabled={!start||!end} className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"><MessageCircle size={18}/> Réserver via WhatsApp</button>
-              {offer.googleMapsUrl && <a href={offer.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 transition hover:bg-slate-50"><ExternalLink size={14}/> Voir la localisation</a>}
-              <div className="mt-5 flex gap-2 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600"/> Votre demande est transmise à l&apos;administrateur. La confirmation finale est effectuée après vérification.</div>
+            <div className="mt-8">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--accent-deep)]">
+                {offer.category?.name}
+                {isHotel && offer.stars ? <span className="inline-flex items-center gap-1 rounded-full bg-[var(--canvas-alt)] px-2.5 py-1 text-xs font-bold text-[var(--ink)]"><Star size={12} fill="currentColor" className="text-amber-500" />{offer.stars} étoiles</span> : null}
+              </div>
+              <h1 className="mt-2 text-balance text-3xl font-extrabold tracking-tight text-[var(--ink)] sm:text-4xl" style={{ fontFamily: 'var(--font-display)' }}>{offer.name}</h1>
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--ink-soft)]">
+                <span className="inline-flex items-center gap-1.5"><MapPin size={15} className="text-[var(--accent-deep)]" />{offer.zone?.name}{offer.address ? ` · ${offer.address}` : ''}</span>
+                {!isHotel && offer.capacity && <span className="inline-flex items-center gap-1.5"><Users size={15} className="text-[var(--accent-deep)]" />Jusqu&apos;à {offer.capacity} personnes</span>}
+              </div>
+
+              {promotion && (
+                <div className="mt-6 rounded-2xl border border-[var(--accent-soft)] bg-[var(--accent-tint)] p-4">
+                  <div className="flex items-center gap-2 text-sm font-bold text-[var(--accent-deep)]"><Tag size={15} /> Offre spéciale {discount > 0 ? `−${discount}%` : ''}</div>
+                  <div className="mt-2 flex items-end gap-3"><strong className="text-2xl font-extrabold text-[var(--ink)]">{Number(promotion.newPrice).toFixed(0)} TND</strong><span className="text-sm text-[var(--ink-soft)] line-through">{Number(promotion.oldPrice).toFixed(0)} TND</span></div>
+                  <p className="mt-1 text-xs text-[var(--ink-soft)]">Valable jusqu’au {new Date(promotion.endDate).toLocaleDateString(locale === 'fr' ? 'fr-TN' : 'en-TN')}.</p>
+                </div>
+              )}
+
+              {offer.description && <p className="mt-6 max-w-2xl whitespace-pre-line text-base leading-8 text-[var(--ink-soft)]">{offer.description}</p>}
+
+              {!!offer.customFields?.length && (
+                <section className="mt-8">
+                  <h2 className="text-xl font-bold text-[var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>Informations pratiques</h2>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {offer.customFields.map((f) => (
+                      <div key={f.id ?? f.fieldName} className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                        <p className="text-sm font-bold text-[var(--ink)]">{f.fieldName}</p>
+                        <p className="mt-1 whitespace-pre-line text-sm leading-6 text-[var(--ink-soft)]">{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {offer.googleMapsUrl && (
+                <a href={offer.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-6 inline-flex h-12 items-center gap-2 rounded-full border border-[var(--line)] px-5 text-sm font-bold text-[var(--ink)] transition-colors hover:border-[var(--ink)]">
+                  <ExternalLink size={15} /> Voir la localisation
+                </a>
+              )}
             </div>
           </div>
+
+          {/* Carte de réservation (collante sur ordinateur) */}
+          <aside className="rounded-[28px] border border-[var(--line)] bg-white p-6 shadow-[0_20px_50px_-24px_rgba(26,26,26,.3)] lg:sticky lg:top-28">
+            {isHotel ? (
+              <div>
+                <p className="text-sm font-bold text-[var(--ink)]">Tarifs hôteliers</p>
+                <div className="mt-2">
+                  {prices.map(([l, v]) => (
+                    <div key={l} className="flex items-center justify-between border-b border-[var(--line)] py-2.5 text-sm last:border-0"><span className="text-[var(--ink-soft)]">{l}</span><strong className="text-[var(--ink)]">{Number(v).toFixed(0)} TND</strong></div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2"><strong className="text-3xl font-extrabold text-[var(--ink)]">{Number(offer.price).toFixed(0)}</strong><span className="text-sm font-semibold text-[var(--ink-soft)]">TND {offer.priceUnit || ''}</span></div>
+            )}
+
+            {!isHotel && (
+              <div className="mt-5 flex gap-1 rounded-full border border-[var(--line)] bg-[var(--canvas-alt)] p-1" role="tablist" aria-label="Type de date">
+                <button type="button" role="tab" aria-selected={!multiDay} onClick={() => toggleMulti(false)} className={seg(!multiDay)}><Sun size={14} /> Une seule date</button>
+                <button type="button" role="tab" aria-selected={multiDay} onClick={() => toggleMulti(true)} className={seg(multiDay)}><Moon size={14} /> Plusieurs jours</button>
+              </div>
+            )}
+
+            <div className={`mt-4 grid gap-3 ${rangeMode ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <label><span className={label}>{rangeMode ? 'Arrivée' : 'Date'}</span><input type="date" min={today} value={start} onChange={(e) => onStart(e.target.value)} className={input} /></label>
+              {rangeMode && <label><span className={label}>Départ</span><input type="date" min={start ? addDaysISO(start, 1) : today} value={end} onChange={(e) => setEnd(e.target.value)} className={input} /></label>}
+            </div>
+            {nights > 0 && <p className="mt-2 text-xs font-semibold text-[var(--ink-soft)]">{nights} nuit{nights > 1 ? 's' : ''}</p>}
+
+            <label className="mt-3 block"><span className={label}>{isHotel ? 'Voyageurs' : 'Places'}</span><input type="number" min={1} value={guests} onChange={(e) => setGuests(Number(e.target.value) || 1)} className={input} /></label>
+
+            <button type="button" onClick={() => setBooking(true)} disabled={!canReserve} className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 text-sm font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-[#20bd5a] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50">
+              <MessageCircle size={18} /> Réserver via WhatsApp
+            </button>
+            <p className="mt-2 text-center text-xs text-[var(--ink-soft)]">{hint || (isHotel ? 'Disponibilité sur demande, confirmée par l’équipe.' : 'Disponibilité vérifiée automatiquement.')}</p>
+
+            <div className="mt-5 flex gap-2 rounded-xl bg-[var(--canvas-alt)] p-3 text-xs leading-5 text-[var(--ink-soft)]"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" /> WhatsApp s’ouvre avec votre message prêt. La confirmation est faite après vérification.</div>
+          </aside>
         </div>
       </div>
-      {booking&&<BookingModal offer={offer} startDate={start} endDate={end} guests={guests} onClose={()=>setBooking(false)}/>}
+
+      {booking && <BookingModal offer={offer} startDate={start} endDate={rangeMode ? end : ''} guests={guests} onClose={() => setBooking(false)} />}
     </main>
   );
 }

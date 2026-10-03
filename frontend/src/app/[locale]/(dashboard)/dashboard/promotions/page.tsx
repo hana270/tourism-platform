@@ -187,6 +187,9 @@ export default function PromotionsPage() {
           </button>
         </div>
       </div>
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        {[['Actives', rows.filter((row) => timingStatus(row) === 'ACTIVE').length, 'bg-emerald-50 text-emerald-800'], ['À venir', rows.filter((row) => timingStatus(row) === 'UPCOMING').length, 'bg-amber-50 text-amber-800'], ['Terminées', rows.filter((row) => timingStatus(row) === 'EXPIRED').length, 'bg-slate-100 text-slate-700']].map(([label, value, tone]) => <div key={String(label)} className={`v11-kpi rounded-2xl p-4 ${tone}`}><p className="text-xs font-bold uppercase tracking-wider opacity-70">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>)}
+      </div>
       <div className="card overflow-x-auto">
         <table className="data-table has-actions">
           <thead>

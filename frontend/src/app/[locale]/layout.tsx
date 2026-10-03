@@ -43,7 +43,9 @@ export async function generateMetadata({
     title: { default: t('siteTitle', { siteName }), template: `%s | ${siteName}` },
     description: t('siteDescription'),
     alternates: localizedAlternates(locale),
-    robots: { index: false, follow: false },
+    // Le layout dashboard possède son propre noindex ; ne pas désindexer tout
+    // le site public depuis ce layout parent.
+    robots: { index: true, follow: true },
     applicationName: siteName,
     icons: siteLogo ? { icon: siteLogo, shortcut: siteLogo, apple: siteLogo } : undefined,
     openGraph: {

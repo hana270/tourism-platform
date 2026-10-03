@@ -134,8 +134,7 @@ export const catalog: Messages = {
     "analytics": {
       "title": "Répartition des offres",
       "published": "Publiées",
-      "draft": "Brouillons",
-      "archived": "Archivées",
+            "archived": "Archivées",
       "health": "Pilotage rapide",
       "healthText": "Les indicateurs sont actualisés automatiquement toutes les 15 secondes.",
       "manageOffers": "Gérer les offres"
@@ -243,7 +242,6 @@ export const catalog: Messages = {
     "refresh": "Actualiser",
     "published": "Publiée",
     "archived": "Archivée",
-    "draft": "Brouillon",
     "hotel": "Hôtel",
     "from": "À partir de",
     "empty": "Aucune offre trouvée.",
@@ -397,7 +395,7 @@ export const catalog: Messages = {
   },
   "availability": {
     "title": "Disponibilités",
-    "subtitle": "Consultez le calendrier de vos offres et bloquez des périodes en quelques clics.",
+    "subtitle": "Vérifiez en un coup d’œil les dates automatiquement indisponibles.",
     "refresh": "Actualiser",
     "chooseOffer": "Offre",
     "allOffers": "Toutes les offres",
@@ -422,7 +420,7 @@ export const catalog: Messages = {
     "empty": "Aucune période bloquée.",
     "loadError": "Impossible de charger les disponibilités.",
     "howTitle": "Comment ça marche ?",
-    "howText": "Les dates d’une réservation confirmée sont bloquées automatiquement. Vous pouvez aussi bloquer une période vous-même (travaux, séjour personnel…).",
+    "howText": "Les dates d’une réservation confirmée et payée sont bloquées automatiquement. Le calendrier sert à contrôler les chevauchements.",
     "fromReservation": "Réservation",
     "manualBlock": "Blocage manuel",
     "prevMonth": "Mois précédent",

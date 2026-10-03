@@ -11,6 +11,7 @@ const envSchema = z.object({
   SESSION_COOKIE_NAME: z.string().default('ihost_session'),
   SESSION_DAYS: z.coerce.number().int().positive().default(7),
   APP_BASE_URL: z.string().url().default('http://localhost:3000'),
+  UPLOAD_DIR: z.string().default('uploads'),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_GRAPH_VERSION: z.string().default('v23.0'),

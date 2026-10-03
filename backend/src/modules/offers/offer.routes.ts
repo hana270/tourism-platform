@@ -1,6 +1,3 @@
-import path from "path";
-import crypto from "crypto";
-import fs from "fs/promises";
 import { Router, Request, Response } from "express";
 import type { FileFilterCallback } from "multer";
 import { OfferStatus } from "@prisma/client";
@@ -15,6 +12,7 @@ import { asyncHandler } from "@/utils/asyncHandler";
 import { ApiError } from "@/utils/ApiError";
 import { translateToEnglish } from "@/lib/seo-translation";
 import { Prisma, PromotionStatus } from "@prisma/client";
+import { deleteOfferImage, processOfferImage } from "@/lib/image-processing";
 const router = Router();
 
 /* ---------- Upload des images ---------- */
@@ -52,8 +50,6 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
     if (files.length === 0) throw ApiError.badRequest("Aucune image reçue.");
-    const dir = path.join(process.cwd(), "uploads", "offers");
-    await fs.mkdir(dir, { recursive: true });
     const urls: string[] = [];
     for (const file of files) {
       const source = sharp(file.buffer, { limitInputPixels: 80_000_000 });
@@ -61,13 +57,9 @@ router.post(
       if (!metadata || !["jpeg", "png", "webp", "heif"].includes(metadata.format ?? "")) {
         throw ApiError.badRequest("Fichier image invalide ou corrompu.");
       }
-      const filename = `${crypto.randomUUID()}.webp`;
-      await sharp(file.buffer, { limitInputPixels: 80_000_000 })
-        .rotate()
-        .resize(1600, 1200, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toFile(path.join(dir, filename));
-      urls.push(`/uploads/offers/${filename}`);
+      const variants = await processOfferImage(file.buffer);
+      // Une URL unique par fichier : aucune réutilisation de la couverture.
+      urls.push(variants.mediumUrl);
     }
     res.status(201).json({ success: true, data: urls });
   }),
@@ -324,7 +316,7 @@ router.patch(
   asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const input = offerInput.parse(req.body);
-    const existing = await prisma.offer.findUnique({ where: { id } });
+    const existing = await prisma.offer.findUnique({ where: { id }, include: { photos: true } });
     if (!existing) throw ApiError.notFound("Offre introuvable.");
     await assertRefs(input);
     const data = await prisma.$transaction(async (tx) => {
@@ -348,6 +340,12 @@ router.patch(
         include,
       });
     });
+    const keptUrls = new Set(input.photos.map((photo) => photo.url));
+    await Promise.all(
+      existing.photos
+        .filter((photo) => !keptUrls.has(photo.url))
+        .map((photo) => deleteOfferImage(photo.url)),
+    );
     await audit(req.auth!.userId, "UPDATE", "Offer", id, { name: data.name });
     res.json({ success: true, data });
   }),
@@ -383,18 +381,11 @@ router.delete(
       include: { photos: true },
     });
     if (!offer) throw ApiError.notFound("Offre introuvable.");
-    const uploadRoot = path.resolve(process.cwd(), "uploads");
     await prisma.offer.delete({ where: { id: req.params.id } });
     await Promise.all(
       offer.photos.map(async (photo) => {
         if (!photo.url.startsWith("/uploads/")) return;
-        const filePath = path.resolve(
-          uploadRoot,
-          photo.url.replace(/^\/uploads\//, ""),
-        );
-        if (filePath.startsWith(uploadRoot + path.sep)) {
-          await fs.rm(filePath, { force: true });
-        }
+        await deleteOfferImage(photo.url);
       }),
     );
     await audit(req.auth!.userId, "DELETE", "Offer", offer.id, {

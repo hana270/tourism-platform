@@ -1,22 +1,16 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import {
-  X,
-  MessageCircle,
-  ShieldCheck,
-  CalendarDays,
-  Users,
-  Loader2,
-  MapPin,
-  Tag,
-} from 'lucide-react';
+import { X, MessageCircle, CalendarDays, Users, Loader2, Tag, Moon, Sun } from 'lucide-react';
 import axios from 'axios';
 import { Offer } from '@/types/offer';
-import { ReservationsApi } from '@/lib/reservations.api';
+import { ReservationsApi, CreateReservationInput } from '@/lib/reservations.api';
 import { SiteSettingsApi } from '@/lib/site-settings.api';
+import { addDaysISO, daysBetween, formatDay, todayISO } from '@/lib/dates';
 
 const DEFAULT_WHATSAPP_NUMBER = '21652663607';
+const CUSTOMER_KEY = 'ihost-customer';
+const SAVE_WAIT_MS = 2000;
 
 function normalizeWhatsAppNumber(value: string | null | undefined): string {
   const raw = String(value ?? '').trim();
@@ -28,9 +22,10 @@ function normalizeWhatsAppNumber(value: string | null | undefined): string {
 }
 
 /**
- * Lien universel wa.me : ouvre l'application WhatsApp sur Android et iPhone,
- * et WhatsApp Desktop / WhatsApp Web sur ordinateur, avec le message pré-rempli.
- * (Le schéma whatsapp:// et web.whatsapp.com ne sont pas fiables selon l'appareil.)
+ * Lien universel wa.me : ouvre l'appli WhatsApp (Android / iPhone) ou
+ * WhatsApp Desktop / Web, avec le message déjà écrit.
+ * NB : WhatsApp ne permet pas l'envoi automatique depuis un site web ;
+ * le client n'a plus qu'à appuyer sur « Envoyer ».
  */
 function openWhatsApp(number: string, message: string) {
   window.location.href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
@@ -39,11 +34,37 @@ function openWhatsApp(number: string, message: string) {
 function formatOfferPrice(offer: Offer) {
   if (offer.isHotel) {
     const prices = [offer.simplePrice, offer.halfBoardPrice, offer.fullBoardPrice, offer.allInclusivePrice]
-      .filter((value) => value != null)
+      .filter((v) => v != null)
       .map(Number);
     return prices.length ? `À partir de ${Math.min(...prices)} TND` : 'Prix sur demande';
   }
   return offer.price != null ? `${Number(offer.price)} TND ${offer.priceUnit || ''}`.trim() : 'Prix sur demande';
+}
+
+function serverMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const m = (error.response?.data as { message?: string | string[] } | undefined)?.message;
+    if (Array.isArray(m)) return m.join(' · ');
+    if (m) return m;
+  }
+  return fallback;
+}
+
+/**
+ * Enregistre la demande. Pour un service d'une seule journée (café, activité…)
+ * on envoie d'abord départ = arrivée ; si le serveur exige un départ postérieur,
+ * on réessaie automatiquement avec le lendemain, sans que le client le voie.
+ */
+async function saveReservation(input: CreateReservationInput, singleDay: boolean) {
+  try {
+    return await ReservationsApi.create(input);
+  } catch (error) {
+    const refused = axios.isAxiosError(error) && !!error.response && error.response.status < 500;
+    if (refused && singleDay) {
+      return ReservationsApi.create({ ...input, endDate: addDaysISO(input.startDate, 1) });
+    }
+    throw error;
+  }
 }
 
 export function BookingModal({
@@ -61,6 +82,7 @@ export function BookingModal({
 }) {
   const [from, setFrom] = useState(startDate || '');
   const [to, setTo] = useState(endDate || '');
+  const [multiDay, setMultiDay] = useState(false);
   const [people, setPeople] = useState(guests || 1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -70,66 +92,118 @@ export function BookingModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isHotel = !!offer?.isHotel;
+
   useEffect(() => {
     if (!offer) return;
-    setFrom(startDate || '');
-    setTo(endDate || '');
+    const s = startDate || '';
+    const e = endDate || '';
+    setFrom(s);
+    // Hôtel : au minimum 1 nuit. Autre offre : une seule date par défaut.
+    setTo(offer.isHotel ? (e && e > s ? e : s ? addDaysISO(s, 1) : '') : e);
+    setMultiDay(offer.isHotel || (!!e && e > s));
     setPeople(guests || 1);
+    setError('');
+    try {
+      const saved = JSON.parse(localStorage.getItem(CUSTOMER_KEY) || 'null');
+      if (saved) {
+        setName((v) => v || saved.name || '');
+        setPhone((v) => v || saved.phone || '');
+        setEmail((v) => v || saved.email || '');
+      }
+    } catch {
+      /* stockage indisponible : on ignore */
+    }
     SiteSettingsApi.contact()
       .then((settings) => setContactPhone(normalizeWhatsAppNumber(settings.whatsappNumero) || DEFAULT_WHATSAPP_NUMBER))
       .catch(() => setContactPhone(DEFAULT_WHATSAPP_NUMBER));
   }, [offer, startDate, endDate, guests]);
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => todayISO(), []);
   if (!offer) return null;
   const selectedOffer = offer;
 
-  const datesAreValid = Boolean(from && to && from >= today && to > from);
-  const canSubmit =
-    name.trim().length >= 2 &&
-    phone.trim().length >= 6 &&
-    datesAreValid &&
-    people > 0 &&
-    !loading;
+  const rangeMode = isHotel || multiDay;
+  const effectiveEnd = rangeMode && to ? to : from;
+  const nights = rangeMode && from && to ? daysBetween(from, to) : 0;
+  const datesAreValid = Boolean(from && from >= today && (!rangeMode || (to && to > from)));
+  const canSubmit = name.trim().length >= 2 && phone.trim().length >= 6 && datesAreValid && people > 0 && !loading;
+
+  const missing = [
+    !from ? 'la date' : from < today ? 'une date à partir d’aujourd’hui' : '',
+    rangeMode && from && (!to || to <= from) ? 'un départ après l’arrivée' : '',
+    name.trim().length < 2 ? 'votre nom' : '',
+    phone.trim().length < 6 ? 'votre téléphone' : '',
+  ].filter(Boolean);
+
+  function changeFrom(value: string) {
+    setFrom(value);
+    if (isHotel && (!to || to <= value)) setTo(value ? addDaysISO(value, 1) : '');
+    else if (multiDay && to && to <= value) setTo('');
+  }
+
+  function toggleMulti(next: boolean) {
+    setMultiDay(next);
+    setTo(next && from ? addDaysISO(from, 1) : '');
+  }
+
+  const dateText = rangeMode
+    ? `du ${from} au ${effectiveEnd}${nights ? ` (${nights} nuit${nights > 1 ? 's' : ''})` : ''}`
+    : `le ${from}`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) {
-      setError('Vérifiez les dates et complétez les champs obligatoires.');
+      setError(`Il manque : ${missing.join(', ')}.`);
       return;
     }
-
     setError('');
     setLoading(true);
 
-    // 1) Enregistrement de la demande. Si le serveur est lent ou injoignable,
-    //    le client n'est pas bloqué : la demande part quand même sur WhatsApp.
-    let reservationId = '';
     try {
-      const reservation = await ReservationsApi.create({
+      localStorage.setItem(CUSTOMER_KEY, JSON.stringify({ name: name.trim(), phone: phone.trim(), email: email.trim() }));
+    } catch {
+      /* ignore */
+    }
+
+    // 1) Enregistrement en arrière-plan. On n'attend que 2 s au maximum :
+    //    la demande part sur WhatsApp même si le serveur est lent.
+    const singleDay = !rangeMode;
+    const save = saveReservation(
+      {
         offerId: selectedOffer.id,
         customerName: name.trim(),
         customerPhone: phone.trim(),
         customerEmail: email.trim() || undefined,
         startDate: from,
-        endDate: to,
+        endDate: effectiveEnd,
         guests: people,
         notes: notes.trim() || undefined,
-      });
-      reservationId =
-        typeof reservation === 'object' && reservation && 'id' in reservation
-          ? String((reservation as { id: string }).id)
-          : '';
-    } catch (exception) {
-      const refused = axios.isAxiosError(exception) && !!exception.response && exception.response.status < 500;
+      },
+      singleDay,
+    ).then(
+      (value) => ({ value }),
+      (exception: unknown) => ({ exception }),
+    );
+    const result = await Promise.race([
+      save,
+      new Promise<{ timeout: true }>((resolve) => setTimeout(() => resolve({ timeout: true }), SAVE_WAIT_MS)),
+    ]);
+
+    let reservationId = '';
+    if ('exception' in result) {
+      const refused = axios.isAxiosError(result.exception) && !!result.exception.response && result.exception.response.status < 500;
       if (refused) {
-        setError(exception instanceof Error ? exception.message : 'Impossible d’enregistrer la demande de réservation.');
+        setError(serverMessage(result.exception, 'Impossible d’enregistrer la demande. Vérifiez les dates.'));
         setLoading(false);
         return;
       }
+    } else if ('value' in result) {
+      const v = result.value;
+      reservationId = typeof v === 'object' && v && 'id' in v ? String((v as { id: string }).id) : '';
     }
 
-    // 2) Message WhatsApp complet : offre + client.
+    // 2) Message WhatsApp complet (offre + client).
     const whatsappNumber = normalizeWhatsAppNumber(contactPhone) || DEFAULT_WHATSAPP_NUMBER;
     const typeLabel = selectedOffer.isHotel ? 'hôtel' : selectedOffer.category?.name || 'offre';
     const details = [
@@ -137,84 +211,109 @@ export function BookingModal({
       selectedOffer.zone?.name ? `Zone : ${selectedOffer.zone.name}` : '',
       selectedOffer.address ? `Adresse : ${selectedOffer.address}` : '',
       selectedOffer.isHotel && selectedOffer.stars ? `Étoiles : ${selectedOffer.stars}` : '',
-      selectedOffer.capacity ? `Capacité : ${selectedOffer.capacity} personnes` : '',
       `Prix indicatif : ${formatOfferPrice(selectedOffer)}`,
       ...(selectedOffer.customFields ?? []).map((field) => `${field.fieldName} : ${field.value}`),
-      typeof window !== 'undefined' ? `Lien : ${window.location.origin}/${document.documentElement.lang || 'fr'}/offers/${selectedOffer.slug}` : '',
+      `Lien : ${window.location.origin}/${document.documentElement.lang || 'fr'}/offers/${selectedOffer.slug}`,
     ].filter(Boolean);
     const message = [
       selectedOffer.isHotel
         ? 'Bonjour, je souhaite réserver cet hôtel sur IHOST.'
-        : `Bonjour, je souhaite réserver ce bien (${typeLabel}) sur IHOST.`,
+        : `Bonjour, je souhaite réserver (${typeLabel}) sur IHOST.`,
       '',
-      '*DÉTAILS DE L’OFFRE*',
+      '*L’OFFRE*',
       reservationId ? `Référence : ${reservationId}` : '',
       `Nom : ${selectedOffer.name}`,
-      `Type : ${typeLabel}`,
       ...details,
       '',
-      '*MES COORDONNÉES*',
-      `Nom complet : ${name.trim()}`,
-      `Téléphone : ${phone.trim()}`,
-      email.trim() ? `E-mail : ${email.trim()}` : '',
-      `Dates : du ${from} au ${to}`,
-      `Voyageurs : ${people}`,
+      '*MA DEMANDE*',
+      `Date : ${dateText}`,
+      `${selectedOffer.isHotel ? 'Voyageurs' : 'Places'} : ${people}`,
       notes.trim() ? `Message : ${notes.trim()}` : '',
       '',
-      selectedOffer.isHotel
-        ? 'Merci de bien vouloir vérifier la disponibilité de cet hôtel pour ma réservation et me confirmer les modalités.'
-        : `Je souhaite réserver cette offre pour la période du ${from} au ${to}. Merci de confirmer la prise en compte de ma demande.`,
-    ].filter(Boolean).join('\n');
+      '*MES COORDONNÉES*',
+      `Nom : ${name.trim()}`,
+      `Téléphone : ${phone.trim()}`,
+      email.trim() ? `E-mail : ${email.trim()}` : '',
+      '',
+      'Merci de confirmer la disponibilité.',
+    ].filter((line, i, all) => line !== '' || (all[i - 1] ?? '') !== '').join('\n');
 
     setLoading(false);
     onClose();
     openWhatsApp(whatsappNumber, message);
   }
 
+  const field = 'h-12 w-full rounded-xl border border-[var(--line)] bg-white px-4 text-sm font-medium text-[var(--ink)] outline-none transition focus:border-[var(--ink)]';
+  const label = 'mb-1.5 block text-xs font-bold text-[var(--ink)]';
+  const seg = (active: boolean) =>
+    `flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold transition-all ${active ? 'bg-[var(--ink)] text-white shadow' : 'text-[var(--ink-soft)] hover:text-[var(--ink)]'}`;
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[var(--ink)]/55 p-0 backdrop-blur-sm sm:items-center sm:p-5" onMouseDown={onClose}>
-      <div className="max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:rounded-[30px]" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--line)] bg-white/95 px-6 py-5 backdrop-blur">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[var(--accent-deep)]">Demande de réservation</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--ink)]">{offer.name}</h2>
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 animate-fade sm:items-center sm:p-5" onMouseDown={onClose}>
+      <div
+        className="max-h-[94dvh] w-full max-w-xl animate-sheet overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:animate-pop sm:rounded-[30px]"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Demande de réservation"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[var(--line)] bg-white px-6 py-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--accent-deep)]">Demande de réservation</p>
+            <h2 className="mt-0.5 truncate text-xl font-semibold tracking-tight text-[var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>{offer.name}</h2>
           </div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--canvas-alt)] text-[var(--ink)] transition hover:bg-[var(--line)]" aria-label="Fermer"><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--canvas-alt)] text-[var(--ink)] transition hover:bg-[var(--line)]"><X size={18} /></button>
         </div>
 
         <form onSubmit={submit} className="space-y-5 p-6">
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
-            <div className="flex items-start gap-3">
-              <MessageCircle size={20} className="mt-0.5 shrink-0 text-[#25D366]" />
-              <div>
-                <p className="text-sm font-semibold text-[var(--ink)]">Une demande, puis un échange direct</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--ink-soft)]">Vos informations et celles de l’offre sont enregistrées, puis reprises automatiquement dans WhatsApp de l’administrateur.</p>
-              </div>
+          {!isHotel && (
+            <div className="flex gap-1 rounded-full border border-[var(--line)] bg-[var(--canvas-alt)] p-1" role="tablist" aria-label="Type de date">
+              <button type="button" role="tab" aria-selected={!multiDay} onClick={() => toggleMulti(false)} className={seg(!multiDay)}><Sun size={15} /> Une seule date</button>
+              <button type="button" role="tab" aria-selected={multiDay} onClick={() => toggleMulti(true)} className={seg(multiDay)}><Moon size={15} /> Plusieurs jours</button>
             </div>
-          </div>
+          )}
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Arrivée <b className="text-[var(--accent-deep)]">*</b></span><input required min={today} type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--line)] px-3 text-xs font-semibold outline-none focus:border-[var(--accent)]" /></label>
-            <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Départ <b className="text-[var(--accent-deep)]">*</b></span><input required min={from || today} type="date" value={to} onChange={(event) => setTo(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--line)] px-3 text-xs font-semibold outline-none focus:border-[var(--accent)]" /></label>
-            <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Voyageurs <b className="text-[var(--accent-deep)]">*</b></span><input required type="number" min={1} max={1000} value={people} onChange={(event) => setPeople(Number(event.target.value) || 1)} className="h-11 w-full rounded-xl border border-[var(--line)] px-3 text-xs font-semibold outline-none focus:border-[var(--accent)]" /></label>
+          <div className={`grid gap-4 ${rangeMode ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+            <label>
+              <span className={label}>{rangeMode ? 'Arrivée' : 'Date'} <b className="text-[var(--accent-deep)]">*</b></span>
+              <input required min={today} type="date" value={from} onChange={(e) => changeFrom(e.target.value)} className={field} />
+            </label>
+            {rangeMode && (
+              <label>
+                <span className={label}>Départ <b className="text-[var(--accent-deep)]">*</b></span>
+                <input required min={from ? addDaysISO(from, 1) : today} type="date" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
+              </label>
+            )}
+            <label>
+              <span className={label}>{isHotel ? 'Voyageurs' : 'Places'} <b className="text-[var(--accent-deep)]">*</b></span>
+              <input required type="number" min={1} max={1000} value={people} onChange={(e) => setPeople(Number(e.target.value) || 1)} className={field} />
+            </label>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><CalendarDays size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Séjour</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{from || '—'} → {to || '—'}</p></div>
-            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><Users size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Voyageurs</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{people} personne{people > 1 ? 's' : ''}</p></div>
-            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><Tag size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Prix indicatif</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{formatOfferPrice(offer)}</p></div>
+            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><CalendarDays size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-xs text-[var(--ink-soft)]">{rangeMode ? 'Séjour' : 'Date'}</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{from ? (rangeMode && to ? `${formatDay(from, 'fr')} → ${formatDay(to, 'fr')}` : formatDay(from, 'fr')) : '—'}{nights ? <span className="block text-xs font-medium text-[var(--ink-soft)]">{nights} nuit{nights > 1 ? 's' : ''}</span> : null}</p></div>
+            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><Users size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-xs text-[var(--ink-soft)]">{isHotel ? 'Voyageurs' : 'Places'}</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{people} {isHotel ? 'personne' : 'place'}{people > 1 ? 's' : ''}</p></div>
+            <div className="rounded-2xl bg-[var(--canvas-alt)] p-4"><Tag size={17} className="text-[var(--accent-deep)]" /><p className="mt-2 text-xs text-[var(--ink-soft)]">Prix indicatif</p><p className="mt-0.5 text-sm font-bold text-[var(--ink)]">{formatOfferPrice(offer)}</p></div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Nom complet <b className="text-[var(--accent-deep)]">*</b></span><input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} className="h-12 w-full rounded-xl border border-[var(--line)] bg-white px-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10" placeholder="Votre nom" /></label>
-            <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Téléphone <b className="text-[var(--accent-deep)]">*</b></span><input required minLength={6} value={phone} onChange={(event) => setPhone(event.target.value)} className="h-12 w-full rounded-xl border border-[var(--line)] bg-white px-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10" placeholder="+216 …" /></label>
+            <label><span className={label}>Nom complet <b className="text-[var(--accent-deep)]">*</b></span><input required minLength={2} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} className={field} placeholder="Votre nom" /></label>
+            <label><span className={label}>Téléphone <b className="text-[var(--accent-deep)]">*</b></span><input required minLength={6} type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={field} placeholder="+216 …" /></label>
           </div>
-          <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">E-mail <span className="font-normal text-[var(--ink-soft)]">(facultatif)</span></span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="h-12 w-full rounded-xl border border-[var(--line)] bg-white px-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10" placeholder="vous@exemple.com" /></label>
-          <label><span className="mb-1.5 block text-xs font-semibold text-[var(--ink)]">Message <span className="font-normal text-[var(--ink-soft)]">(facultatif)</span></span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-24 w-full resize-none rounded-xl border border-[var(--line)] bg-white p-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10" placeholder="Une précision pour l’administrateur…" /></label>
+          <label><span className={label}>E-mail <span className="font-normal text-[var(--ink-soft)]">(facultatif)</span></span><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={field} placeholder="vous@exemple.com" /></label>
+          <label><span className={label}>Message <span className="font-normal text-[var(--ink-soft)]">(facultatif)</span></span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-20 w-full resize-none rounded-xl border border-[var(--line)] bg-white p-4 text-sm outline-none transition focus:border-[var(--ink)]" placeholder="Une précision pour l’équipe…" /></label>
 
           {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">{error}</div>}
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div className="flex gap-3"><ShieldCheck size={19} className="mt-0.5 shrink-0 text-emerald-600" /><p className="text-xs leading-5 text-emerald-900">La demande est enregistrée avant l’ouverture de WhatsApp. Elle devient définitive uniquement après confirmation de l’administrateur.</p></div></div>
-          <button type="submit" disabled={!canSubmit} className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-[#20bd5a] disabled:cursor-not-allowed disabled:opacity-50">{loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}{loading ? 'Préparation…' : 'Réserver via WhatsApp'}</button>
+
+          <div>
+            <button type="submit" aria-disabled={!canSubmit} className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 text-sm font-extrabold text-white shadow-lg shadow-emerald-500/20 transition active:scale-[.99] ${canSubmit ? 'hover:bg-[#20bd5a]' : 'opacity-60'}`}>
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
+              {loading ? 'Ouverture de WhatsApp…' : 'Continuer sur WhatsApp'}
+            </button>
+            <p className="mt-2 text-center text-xs leading-5 text-[var(--ink-soft)]">
+              {!canSubmit && missing.length > 0 ? `Il manque : ${missing.join(', ')}.` : 'WhatsApp s’ouvre avec votre message prêt : il ne reste qu’à appuyer sur Envoyer. La demande devient définitive après confirmation.'}
+            </p>
+          </div>
         </form>
       </div>
     </div>

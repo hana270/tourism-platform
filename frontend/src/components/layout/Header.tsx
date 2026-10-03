@@ -47,8 +47,8 @@ export function Header() {
           </button>
 
           <Link href={`/${locale}/dashboard`} className="group flex min-w-0 items-center gap-3" aria-label={site.nomSite}>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden">
-              {site.logo ? <img src={imageUrl(site.logo)} alt="" className="h-full w-full object-contain p-1.5" /> : <Building2 size={19} className="text-ink-soft" />}
+            <span className="flex h-10 max-w-[154px] shrink-0 items-center justify-start overflow-visible bg-transparent p-0 shadow-none">
+              {site.logo ? <img src={imageUrl(site.logo)} alt="" className="block max-h-9 w-auto max-w-[154px] object-contain bg-transparent" /> : <Building2 size={19} className="text-ink-soft" />}
             </span>
             <span className="hidden min-w-0 sm:block">
               <strong className="block truncate font-display text-sm font-semibold text-ink">{site.nomSite}</strong>
