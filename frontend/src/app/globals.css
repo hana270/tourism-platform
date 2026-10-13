@@ -439,8 +439,10 @@ body { top: 0 !important; }
   --teal: #0b7285;
   --teal-soft: #e7f6f7;
   --sand: #f8f5ef;
-  --promo: #d94f45;
-  --promo-soft: #fff0ed;
+  --promo: #b42318;
+  --promo-border: #fecdca;
+  --promo-ink: #7a271a;
+  --promo-soft: #fef3f2;
 }
 .public-shell {
   background: linear-gradient(180deg, #ffffff 0%, #fbfaf7 48%, #ffffff 100%) !important;
@@ -542,8 +544,10 @@ body { top: 0 !important; }
    ========================================================================== */
 
 :root {
-  --promo: #d94f45;
-  --promo-soft: #fff0ed;
+  --promo: #b42318;
+  --promo-border: #fecdca;
+  --promo-ink: #7a271a;
+  --promo-soft: #fef3f2;
 }
 
 .public-shell {
@@ -633,8 +637,10 @@ body { top: 0 !important; }
    ========================================================================== */
 
 :root {
-  --promo: #d94f45;
-  --promo-soft: #fff0ed;
+  --promo: #b42318;
+  --promo-border: #fecdca;
+  --promo-ink: #7a271a;
+  --promo-soft: #fef3f2;
 }
 
 .public-shell {
@@ -702,4 +708,93 @@ body { top: 0 !important; }
 @media (prefers-reduced-motion: reduce) {
   .animate-pop, .animate-fade, .animate-sheet, .public-reveal { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
+}
+/* === Hero : cartes flottantes, bandeau défilant === */
+@keyframes hero-float-a { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-9px) rotate(-1.5deg); } }
+@keyframes hero-float-b { 0%,100% { transform: translateY(0) rotate(1.5deg); } 50% { transform: translateY(-12px) rotate(1.5deg); } }
+.hero-float { transition: box-shadow .3s ease; }
+.hero-float-a { animation: hero-float-a 6.5s ease-in-out infinite; }
+.hero-float-b { animation: hero-float-b 7.5s ease-in-out infinite; }
+.hero-float:hover { animation-play-state: paused; }
+@keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { display: flex; width: max-content; animation: marquee-x 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+[dir="rtl"] .marquee-track { animation-direction: reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-float-a, .hero-float-b, .marquee-track { animation: none !important; }
+}
+
+/* ==========================================================================
+   IHOST — Espace réservations (admin) : tiroir, calendrier, animations
+   ========================================================================== */
+@keyframes drawer-right { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes drawer-right-rtl { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(245 158 11 / .45); }
+  70% { box-shadow: 0 0 0 7px rgb(245 158 11 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0); }
+}
+@keyframes count-pop { from { opacity: 0; transform: translateY(6px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes check-draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+@keyframes ring-draw { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
+
+.anim-drawer-right { animation: drawer-right 300ms cubic-bezier(.22, 1, .36, 1) backwards; }
+[dir='rtl'] .anim-drawer-right { animation-name: drawer-right-rtl; }
+.pulse-dot { animation: pulse-ring 1.8s ease-out infinite; }
+.kpi-pop { animation: count-pop 420ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.success-ring { stroke-dasharray: 160; animation: ring-draw 700ms ease-out 100ms backwards; }
+.success-check { stroke-dasharray: 30; animation: check-draw 450ms ease-out 550ms backwards; }
+
+.cal-cell { min-height: 112px; transition: background-color 150ms ease, box-shadow 150ms ease; }
+.cal-cell:hover { background-color: rgb(var(--c-surface-alt)); }
+.cal-cell.is-selected { box-shadow: inset 0 0 0 2px rgb(var(--c-ink)); background-color: rgb(var(--c-surface-alt)); }
+@media (max-width: 767px) { .cal-cell { min-height: 64px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .kpi-pop, .success-ring, .success-check, .anim-drawer-right { animation: none; }
+  .success-ring, .success-check { stroke-dasharray: none; }
+}
+
+/* ==========================================================================
+   IHOST — Pages d'authentification (connexion, mot de passe oublié / nouveau)
+   ========================================================================== */
+.auth-root {
+  --a-bg: #f6f6f3; --a-card: #ffffff; --a-border: #e3e1d8; --a-text: #171717; --a-muted: #66635b;
+  --a-soft: #f3f2ee; --a-primary: #171717; --a-primary-fg: #ffffff; --a-primary-hover: #000000;
+  --a-accent: #ffc81e; --a-ring: rgb(255 200 30 / .45); --a-dot: rgb(23 23 23 / .09);
+  --a-ok-bg: #ecfdf3; --a-ok-fg: #027a48; --a-err-bg: #fef3f2; --a-err-fg: #b42318; --a-err-border: #fecdca;
+  background: var(--a-bg); color: var(--a-text);
+}
+.dark .auth-root {
+  --a-bg: #09090b; --a-card: #111113; --a-border: #27272a; --a-text: #fafafa; --a-muted: #a1a1aa;
+  --a-soft: #18181b; --a-primary: #fafafa; --a-primary-fg: #09090b; --a-primary-hover: #ffffff;
+  --a-ring: rgb(255 200 30 / .35); --a-dot: rgb(255 255 255 / .09);
+  --a-ok-bg: rgb(2 122 72 / .18); --a-ok-fg: #6ce9a6; --a-err-bg: rgb(180 35 24 / .18); --a-err-fg: #fda29b; --a-err-border: rgb(180 35 24 / .5);
+}
+
+.auth-dots {
+  background-image: radial-gradient(var(--a-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 100%);
+}
+@keyframes auth-float-a { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(40px,30px,0) scale(1.12); } }
+@keyframes auth-float-b { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-50px,-24px,0) scale(1.08); } }
+@keyframes auth-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes auth-item { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes auth-shake { 10%,90% { transform: translateX(-1px); } 20%,80% { transform: translateX(2px); } 30%,50%,70% { transform: translateX(-4px); } 40%,60% { transform: translateX(4px); } }
+@keyframes auth-sheen { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
+
+.auth-blob-a { animation: auth-float-a 16s ease-in-out infinite; }
+.auth-blob-b { animation: auth-float-b 20s ease-in-out infinite; }
+.auth-card { animation: auth-in 520ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.auth-item { animation: auth-item 480ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.auth-shake { animation: auth-shake 480ms cubic-bezier(.36, .07, .19, .97); }
+.auth-btn { position: relative; overflow: hidden; }
+.auth-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / .28) 50%, transparent 70%); transform: translateX(-120%); }
+.auth-btn:hover:not(:disabled)::after { animation: auth-sheen 700ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-blob-a, .auth-blob-b, .auth-card, .auth-item, .auth-shake { animation: none; }
+  .auth-btn:hover::after { animation: none; }
 }

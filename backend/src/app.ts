@@ -19,6 +19,16 @@ export function createApp() {
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
+  // Protection CSRF : le cookie de session est « SameSite=None » en production (site et API sur deux domaines).
+  // Toute requête qui modifie des données doit donc venir d'une origine autorisée (CORS_ORIGIN).
+  const allowedOrigins = new Set(env.CORS_ORIGIN.split(',').map((v) => v.trim().replace(/\/$/, '')));
+  app.use((req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    const origin = req.headers.origin?.replace(/\/$/, '');
+    const hasSession = Boolean(req.cookies?.[env.SESSION_COOKIE_NAME]);
+    if (origin ? allowedOrigins.has(origin) : !hasSession) return next();
+    return res.status(403).json({ success: false, message: 'Origine non autorisée.' });
+  });
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false }));
   if (env.NODE_ENV === 'development') app.use(morgan('dev'));
   // Les images ne sont plus servies par ce serveur : elles vivent dans Supabase Storage

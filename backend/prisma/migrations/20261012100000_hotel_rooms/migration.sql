@@ -1,0 +1,1 @@
+ALTER TABLE "offres" ADD COLUMN "roomCount" INTEGER;

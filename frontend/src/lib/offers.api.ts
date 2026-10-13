@@ -14,7 +14,9 @@ function payload(values: OfferFormValues) {
     address: values.address.trim() || null,
     googleMapsUrl: values.googleMapsUrl.trim() || null,
     isHotel: hotel,
+    accommodationType: values.accommodationType || null,
     capacity: hotel ? null : num(values.capacity),
+    roomCount: hotel ? num(values.roomCount) : null,
     // DB/business-rule field: Oui means partner availability is checked manually.
     availabilityOnDemand: values.availabilityOnRequest,
     stars: hotel && values.stars ? Number(values.stars) : null,
@@ -24,7 +26,9 @@ function payload(values: OfferFormValues) {
     allInclusivePrice: hotel ? num(values.allInclusivePrice) : null,
     fullBoardPrice: hotel ? num(values.fullBoardPrice) : null,
     photos: values.photos.filter((p) => p.url.trim()),
-    customFields: values.customFields.filter((f) => f.fieldName.trim() && f.value.trim()).map((f) => ({ fieldName: f.fieldName.trim(), value: f.value.trim() })),
+    customFields: values.customFields
+      .filter((f) => f.fieldName.trim() && f.value.trim())
+      .map((f) => ({ fieldName: f.fieldName.trim(), value: f.value.trim(), fieldType: f.fieldType, icon: f.icon || null, groupName: f.groupName.trim() || null })),
   };
 }
 

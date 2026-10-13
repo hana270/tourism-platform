@@ -45,6 +45,16 @@ export default function OffersPage() {
   }, [t, locale]);
   useEffect(() => { load(); }, [load]);
 
+  // Ouverture directe du formulaire de modification : /dashboard/offers?edit=<id>
+  const [autoEditDone, setAutoEditDone] = useState(false);
+  useEffect(() => {
+    if (autoEditDone || offers.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get('edit');
+    setAutoEditDone(true);
+    const target = id ? offers.find((o) => o.id === id) : undefined;
+    if (target) { setEditing(target); setOpen(true); }
+  }, [offers, autoEditDone]);
+
   const displayName = (offer: Offer) => (locale === 'en' ? offer.automaticEnglish?.name ?? offer.name : offer.name);
 
   const filtered = useMemo(() => offers.filter((offer) =>

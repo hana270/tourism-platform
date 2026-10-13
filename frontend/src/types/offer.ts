@@ -10,14 +10,27 @@ export type Zone = {
 };
 
 export type OfferPhoto = { id?: string; url: string; isPrimary: boolean; altText?: string | null };
-export type OfferCustomField = { id?: string; fieldName: string; value: string };
+export type AccommodationType = 'HOTEL' | 'APARTMENT' | 'VILLA' | 'GUESTHOUSE' | 'OTHER';
+export type FieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'LIST' | 'LINK';
+export type OfferCustomField = {
+  id?: string;
+  fieldName: string;
+  value: string;
+  fieldType?: FieldType;
+  icon?: string | null;
+  groupName?: string | null;
+  position?: number;
+};
+export type PriceKey = 'BASE' | 'SIMPLE' | 'HALF_BOARD' | 'FULL_BOARD' | 'ALL_INCLUSIVE';
+
 export type OfferPromotion = {
   id: string;
-  priceType: string;
+  priceType: PriceKey | string;
   oldPrice: string | number;
   newPrice: string | number;
   startDate: string;
   endDate: string;
+  showOnHomepage?: boolean;
 };
 
 export type Offer = {
@@ -29,7 +42,10 @@ export type Offer = {
   price: string | number;
   priceUnit?: string;
   isHotel: boolean;
+  accommodationType?: AccommodationType | null;
   capacity: number | null;
+  /** Hôtels : nombre de chambres réservables en même temps (null = pas de limite). */
+  roomCount?: number | null;
   /** false = platform checks and blocks the full offer automatically; true = partner availability is checked manually. */
   availabilityOnRequest: boolean;
   availabilityOnDemand?: boolean;
@@ -44,7 +60,7 @@ export type Offer = {
   slug: string;
   createdAt: string;
   updatedAt: string;
-  category?: { id: string; name: string } | null;
+  category?: { id: string; name: string; slug?: string } | null;
   zone?: Zone | null;
   photos: OfferPhoto[];
   customFields?: OfferCustomField[];
@@ -61,7 +77,9 @@ export type OfferFormValues = {
   address: string;
   googleMapsUrl: string;
   isHotel: boolean;
+  accommodationType: '' | AccommodationType;
   capacity: string;
+  roomCount: string;
   /** false = platform checks and blocks the full offer automatically; true = partner availability is checked manually. */
   availabilityOnRequest: boolean;
   availabilityOnDemand?: boolean;
@@ -72,5 +90,5 @@ export type OfferFormValues = {
   allInclusivePrice: string;
   fullBoardPrice: string;
   photos: { url: string; isPrimary: boolean; altText: string }[];
-  customFields: { fieldName: string; value: string }[];
+  customFields: { fieldName: string; value: string; fieldType: FieldType; icon: string; groupName: string }[];
 };

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { CalendarDays, MapPin, Minus, Plus, Search, Tag, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Check, MapPin, Minus, Plus, Search, Tag, Users, X, type LucideIcon } from 'lucide-react';
 import { toIntl } from '@/i18n/config';
 import { Zone } from '@/types/offer';
 import { Category } from '@/types/category';
+import { useSiteLayout } from '@/lib/useSiteLayout';
 
 /* ------------------------------------------------------------------ */
 /*  État de recherche partagé (header, accueil, feuille mobile)        */
@@ -18,7 +19,7 @@ export type SearchState = {
   end: string;
   guests: number;
 };
-export type Field = 'where' | 'date' | 'guests';
+export type Field = 'where' | 'date' | 'guests' | 'zone' | 'category';
 
 const EMPTY: SearchState = { text: '', zone: null, category: null, start: '', end: '', guests: 1 };
 let current: SearchState = EMPTY;
@@ -60,7 +61,7 @@ export function formatDates(locale: string, s: SearchState) {
     new Date(`${v}T00:00:00`).toLocaleDateString(toIntl(locale), { day: 'numeric', month: 'short' });
   return s.start ? (s.end ? `${fmt(s.start)} – ${fmt(s.end)}` : fmt(s.start)) : 'Dates flexibles';
 }
-export const formatGuests = (n: number) => `${n} voyageur${n > 1 ? 's' : ''}`;
+export const formatGuests = (n: number) => `${n} personne${n > 1 ? 's' : ''}`;
 
 function goSearch(locale: string, s: SearchState) {
   const p = new URLSearchParams();
@@ -179,13 +180,13 @@ function GuestStepper({ s }: { s: SearchState }) {
   return (
     <div className="flex items-center justify-between gap-6">
       <div>
-        <p className="text-sm font-bold text-[var(--ink)]">Voyageurs</p>
+        <p className="text-sm font-bold text-[var(--ink)]">Personnes</p>
         <p className="text-xs text-[var(--ink-soft)]">Adultes et enfants</p>
       </div>
       <div className="flex items-center gap-4">
-        <button type="button" aria-label="Retirer un voyageur" disabled={s.guests <= 1} onClick={() => patchSearch({ guests: s.guests - 1 })} className={btn}><Minus size={16} /></button>
+        <button type="button" aria-label="Retirer une personne" disabled={s.guests <= 1} onClick={() => patchSearch({ guests: s.guests - 1 })} className={btn}><Minus size={16} /></button>
         <span className="w-6 text-center text-base font-bold tabular-nums" aria-live="polite">{s.guests}</span>
-        <button type="button" aria-label="Ajouter un voyageur" disabled={s.guests >= 50} onClick={() => patchSearch({ guests: s.guests + 1 })} className={btn}><Plus size={16} /></button>
+        <button type="button" aria-label="Ajouter une personne" disabled={s.guests >= 50} onClick={() => patchSearch({ guests: s.guests + 1 })} className={btn}><Plus size={16} /></button>
       </div>
     </div>
   );
@@ -287,7 +288,7 @@ export function DesktopSearch({ locale, zones, categories }: Props) {
           </span>
         </button>
         {open === 'guests' && (
-          <div role="dialog" aria-label="Nombre de voyageurs" className={`${pop} end-0 w-80`}>
+          <div role="dialog" aria-label="Nombre de personnes" className={`${pop} end-0 w-80`}>
             <GuestStepper s={s} />
           </div>
         )}
@@ -329,6 +330,32 @@ export function CompactSearchPill({ locale, onClick }: { locale: string; onClick
 /*  Mobile : feuille plein écran « Où / Quand / Qui »                  */
 /* ------------------------------------------------------------------ */
 
+/** Choix rapide sous forme de puces (zones géographiques, catégories) dans la feuille mobile. */
+function ChipPicker({ items, selectedId, onPick, emptyLabel }: {
+  items: { id: string; name: string }[]; selectedId?: string; onPick: (id: string | null) => void; emptyLabel: string;
+}) {
+  if (!items.length) return <p className="text-sm text-[var(--ink-soft)]">{emptyLabel}</p>;
+  return (
+    <div className="flex flex-wrap gap-2" role="listbox">
+      {items.map((it) => {
+        const on = it.id === selectedId;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            role="option"
+            aria-selected={on}
+            onClick={() => onPick(on ? null : it.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-bold transition-all active:scale-95 ${on ? 'border-[var(--ink)] bg-[var(--ink)] text-white' : 'border-[var(--line)] bg-white text-[var(--ink)] hover:border-[var(--ink)]'}`}
+          >
+            {on && <Check size={14} aria-hidden="true" />}{it.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SheetCard({ active, onOpen, Icon, label, title, value, children }: {
   active: boolean; onOpen: () => void; Icon: LucideIcon; label: string; title: string; value: string; children: React.ReactNode;
 }) {
@@ -354,11 +381,20 @@ function SheetCard({ active, onOpen, Icon, label, title, value, children }: {
 
 export function MobileSearchSheet({ open, initial, onClose, locale, zones, categories }: Props & { open: boolean; initial: Field; onClose: () => void }) {
   const s = useSearchState();
-  const [step, setStep] = useState<Field>(initial);
+  const layout = useSiteLayout();
+  /* Ordre et visibilité choisis par l'administrateur (au moins un champ reste affiché). */
+  const order = useMemo<Field[]>(() => {
+    const list = layout.searchFields.filter((f) => f.visible).map((f) => f.id as Field);
+    return list.length ? list : ['where'];
+  }, [layout]);
+  const firstStep = order.includes(initial) ? initial : order[0];
+  const [step, setStep] = useState<Field>(firstStep);
+  const next = (from: Field) => order[order.indexOf(from) + 1] ?? from;
+  const isLast = (id: Field) => order.indexOf(id) === order.length - 1;
 
   useEffect(() => {
     if (!open) return;
-    setStep(initial);
+    setStep(firstStep);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -367,9 +403,77 @@ export function MobileSearchSheet({ open, initial, onClose, locale, zones, categ
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', key);
     };
-  }, [open, initial, onClose]);
+  }, [open, firstStep, onClose]);
 
   if (!open) return null;
+
+  const continueBtn = (id: Field) =>
+    isLast(id) ? null : (
+      <button type="button" onClick={() => setStep(next(id))} className="mt-4 h-11 w-full rounded-xl bg-[var(--ink)] text-sm font-bold text-white active:scale-[.98]">Continuer</button>
+    );
+
+  const cards: Record<Field, React.ReactNode> = {
+    where: (
+      <SheetCard key="where" active={step === 'where'} onOpen={() => setStep('where')} Icon={MapPin} label="Où" title="Où allez-vous ?" value={s.text || s.category?.name || 'Je suis flexible'}>
+        <div className="flex h-12 items-center gap-3 rounded-2xl border border-[var(--line)] bg-white px-4 focus-within:border-[var(--ink)]">
+          <Search size={18} className="shrink-0 text-[var(--ink-soft)]" aria-hidden="true" />
+          <input
+            value={s.text}
+            onChange={(e) => onTextChange(e.target.value, s)}
+            placeholder="Lieu, hôtel ou activité"
+            autoComplete="off"
+            aria-label="Lieu ou activité"
+            className="w-full bg-transparent text-sm font-semibold text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-soft)]"
+          />
+        </div>
+        <div className="mt-2 max-h-64 overflow-y-auto">
+          <Suggestions zones={zones} categories={categories} locale={locale} text={s.text} onDone={() => setStep(next('where'))} />
+        </div>
+      </SheetCard>
+    ),
+    date: (
+      <SheetCard key="date" active={step === 'date'} onOpen={() => setStep('date')} Icon={CalendarDays} label="Quand" title="Quand partez-vous ?" value={formatDates(locale, s)}>
+        <DateFields s={s} />
+        {continueBtn('date')}
+      </SheetCard>
+    ),
+    guests: (
+      <SheetCard key="guests" active={step === 'guests'} onOpen={() => setStep('guests')} Icon={Users} label="Qui" title="Qui voyage ?" value={formatGuests(s.guests)}>
+        <GuestStepper s={s} />
+        {continueBtn('guests')}
+      </SheetCard>
+    ),
+    zone: (
+      <SheetCard key="zone" active={step === 'zone'} onOpen={() => setStep('zone')} Icon={MapPin} label="Zone" title="Quelle zone ?" value={s.zone?.name || 'Toutes les zones'}>
+        <ChipPicker
+          items={zones}
+          selectedId={s.zone?.id}
+          emptyLabel="Aucune zone disponible."
+          onPick={(id) => {
+            const zone = zones.find((z) => z.id === id) ?? null;
+            patchSearch({ zone, text: zone?.name ?? '', category: zone ? null : s.category });
+            if (zone) setStep(next('zone'));
+          }}
+        />
+        {continueBtn('zone')}
+      </SheetCard>
+    ),
+    category: (
+      <SheetCard key="category" active={step === 'category'} onOpen={() => setStep('category')} Icon={Tag} label="Catégorie" title="Quel type d’offre ?" value={s.category?.name || 'Toutes les catégories'}>
+        <ChipPicker
+          items={categories.filter((c) => c.isActive)}
+          selectedId={s.category?.id}
+          emptyLabel="Aucune catégorie disponible."
+          onPick={(id) => {
+            const category = categories.find((c) => c.id === id) ?? null;
+            patchSearch({ category, text: category?.name ?? '', zone: category ? null : s.zone });
+            if (category) setStep(next('category'));
+          }}
+        />
+        {continueBtn('category')}
+      </SheetCard>
+    ),
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--canvas-alt)] animate-sheet lg:hidden" role="dialog" aria-modal="true" aria-label="Rechercher">
@@ -382,31 +486,7 @@ export function MobileSearchSheet({ open, initial, onClose, locale, zones, categ
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pb-6 pt-2">
-        <SheetCard active={step === 'where'} onOpen={() => setStep('where')} Icon={MapPin} label="Où" title="Où allez-vous ?" value={s.text || s.category?.name || 'Je suis flexible'}>
-          <div className="flex h-12 items-center gap-3 rounded-2xl border border-[var(--line)] bg-white px-4 focus-within:border-[var(--ink)]">
-            <Search size={18} className="shrink-0 text-[var(--ink-soft)]" aria-hidden="true" />
-            <input
-              value={s.text}
-              onChange={(e) => onTextChange(e.target.value, s)}
-              placeholder="Lieu, hôtel ou activité"
-              autoComplete="off"
-              aria-label="Lieu ou activité"
-              className="w-full bg-transparent text-sm font-semibold text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-soft)]"
-            />
-          </div>
-          <div className="mt-2 max-h-64 overflow-y-auto">
-            <Suggestions zones={zones} categories={categories} locale={locale} text={s.text} onDone={() => setStep('date')} />
-          </div>
-        </SheetCard>
-
-        <SheetCard active={step === 'date'} onOpen={() => setStep('date')} Icon={CalendarDays} label="Quand" title="Quand partez-vous ?" value={formatDates(locale, s)}>
-          <DateFields s={s} />
-          <button type="button" onClick={() => setStep('guests')} className="mt-4 h-11 w-full rounded-xl bg-[var(--ink)] text-sm font-bold text-white active:scale-[.98]">Continuer</button>
-        </SheetCard>
-
-        <SheetCard active={step === 'guests'} onOpen={() => setStep('guests')} Icon={Users} label="Qui" title="Qui voyage ?" value={formatGuests(s.guests)}>
-          <GuestStepper s={s} />
-        </SheetCard>
+        {order.map((id) => cards[id])}
       </div>
 
       <div className="flex items-center justify-between gap-4 border-t border-[var(--line)] bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">

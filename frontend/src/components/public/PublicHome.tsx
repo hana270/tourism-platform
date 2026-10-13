@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useLocale } from "@/i18n/translate";
-import { ArrowRight, CalendarCheck, ChevronRight, MapPin, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarCheck, ChevronRight, Facebook, Headphones, Instagram, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Sparkles } from "lucide-react";
+import { RemoteImage } from "@/components/ui/RemoteImage";
+import { Reveal } from "@/components/ui/Reveal";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { HeroVisual } from "@/components/public/HeroVisual";
+import { DealsCarousel } from "@/components/public/DealsCarousel";
+import { promotedOffers } from "@/lib/offer-price";
 import { useSearchState } from "@/components/public/NavSearch";
 import { categoryIcon } from "@/lib/category-icons";
 import { OfferCard } from "@/components/public/OfferCard";
@@ -14,8 +19,9 @@ import { CoverFlowCarousel, CarouselItem } from "@/components/ui/coverflow-carou
 import { CategoriesApi } from "@/lib/categories.api";
 import { OffersApi } from "@/lib/offers.api";
 import { ZonesApi } from "@/lib/zones.api";
-import { SiteSettingsApi, HomepageSettings } from "@/lib/site-settings.api";
+import { SiteSettingsApi, HomepageSettings, ContactSettings } from "@/lib/site-settings.api";
 import { imageUrl } from "@/lib/api";
+import { useSiteLayout } from "@/lib/useSiteLayout";
 import { Category } from "@/types/category";
 import { Offer, Zone } from "@/types/offer";
 
@@ -36,39 +42,19 @@ function toCarouselItem(o: Offer): CarouselItem {
   };
 }
 
-/** Apparition douce au défilement (voir .reveal dans globals.css). */
-function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) {
-        setOn(true);
-        io.disconnect();
-      }
-    }, { threshold: 0.12 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+function SectionTitle({ title, hint, href, cta, eyebrow }: { title: string; hint?: string; href?: string; cta?: string; eyebrow?: string }) {
   return (
-    <div ref={ref} style={{ transitionDelay: `${delay}ms` }} className={`reveal ${on ? "is-visible" : ""} ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function SectionTitle({ title, hint, href, cta }: { title: string; hint?: string; href: string; cta: string }) {
-  return (
-    <div className="flex items-end justify-between gap-6">
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div>
-        <h2 className="text-balance text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-4xl" style={display}>{title}</h2>
-        {hint && <p className="mt-2 max-w-xl text-base leading-7 text-[var(--ink-soft)]">{hint}</p>}
+        {eyebrow && <p className="mb-2 inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-[.14em] text-[var(--accent-deep)]"><span className="h-0.5 w-6 rounded-full bg-[var(--accent)]" />{eyebrow}</p>}
+        <h2 className="text-balance text-3xl font-extrabold tracking-tight text-[var(--ink)] sm:text-4xl" style={display}>{title}</h2>
+        {hint && <p className="mt-3 max-w-xl text-base leading-7 text-[var(--ink-soft)] sm:text-lg">{hint}</p>}
       </div>
-      <Link href={href} className="group inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-bold text-[var(--ink)] transition-colors hover:border-[var(--ink)]">
-        {cta} <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-      </Link>
+      {href && cta && (
+        <Link href={href} className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-[var(--line)] px-5 py-2.5 text-sm font-bold text-[var(--ink)] transition-colors hover:border-[var(--ink)]">
+          {cta} <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
     </div>
   );
 }
@@ -81,34 +67,244 @@ export default function PublicHome() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const search = useSearchState();
+  const layout = useSiteLayout();
   const [booking, setBooking] = useState<Offer | null>(null);
+  const [contact, setContact] = useState<ContactSettings | null>(null);
+  const [tab, setTab] = useState("all");
 
   useEffect(() => {
     Promise.all([
       SiteSettingsApi.homepage().then((v) => setSite({ ...DEFAULT_SITE, ...v })).catch(() => undefined),
       CategoriesApi.list(locale).then((v) => setCategories(v.filter((c) => c.isActive))).catch(() => []),
       ZonesApi.list(locale).then(setZones).catch(() => []),
+      SiteSettingsApi.contact().then(setContact).catch(() => undefined),
       OffersApi.list({ locale, status: "PUBLISHED" }).then(setOffers).catch(() => []),
     ]).finally(() => setLoading(false));
   }, [locale]);
 
   const featured = useMemo(() => offers.filter((o) => o.status === "PUBLISHED").slice(0, 6), [offers]);
   const showcase = useMemo(() => featured.filter((o) => o.photos.length > 0).slice(0, 5).map(toCarouselItem), [featured]);
-  const cover = site.photoCouverture ? imageUrl(site.photoCouverture) : "";
+  const withPhotos = featured.filter((o) => o.photos.length > 0);
+  const fallbackPhoto = withPhotos[2]?.photos[0] ?? withPhotos[0]?.photos[0];
+  const cover = site.photoCouverture ? imageUrl(site.photoCouverture) : fallbackPhoto ? imageUrl(fallbackPhoto.url, "offers") : "";
   const collage = featured.filter((o) => o.photos.length > 0).slice(0, 2);
+  const published = useMemo(() => offers.filter((o) => o.status === "PUBLISHED"), [offers]);
+  const tabs = useMemo(() => categories.filter((c) => published.some((o) => o.categoryId === c.id)).slice(0, 6), [categories, published]);
+  const shown = useMemo(() => (tab === "all" ? published : published.filter((o) => o.categoryId === tab)).slice(0, 6), [published, tab]);
+  // Destinations : celles qui ont des offres d'abord (les plus fournies en tête), puis les autres.
+  const zoneStats = useMemo(() => {
+    const count = new Map<string, number>();
+    published.forEach((o) => o.zoneId && count.set(o.zoneId, (count.get(o.zoneId) ?? 0) + 1));
+    const withOffers = zones.filter((z) => (count.get(z.id) ?? 0) > 0).sort((a, b) => (count.get(b.id)! - count.get(a.id)!) || a.name.localeCompare(b.name));
+    const others = zones.filter((z) => !count.get(z.id)).sort((a, b) => a.name.localeCompare(b.name));
+    return { count, withOffers, others, ordered: [...withOffers, ...others] };
+  }, [zones, published]);
+  const promos = useMemo(() => promotedOffers(published), [published]);
+  const [zoneTab, setZoneTab] = useState("all");
+  const zoneOffers = useMemo(() => (zoneTab === "all" ? published : published.filter((o) => o.zoneId === zoneTab)).slice(0, 6), [published, zoneTab]);
+  const zoneTotal = zoneTab === "all" ? published.length : zoneStats.count.get(zoneTab) ?? 0;
+  const activeZone = zones.find((z) => z.id === zoneTab);
+  const waLink = contact?.whatsappNumero ? `https://wa.me/${contact.whatsappNumero.replace(/\D/g, "")}` : "";
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "TravelAgency",
-    name: site.nomSite,
-    url: typeof window !== "undefined" ? window.location.origin : undefined,
-    logo: site.logo ? imageUrl(site.logo) : undefined,
-    description: site.sousTitre || "Plateforme touristique et réservation en Tunisie.",
+  /* Sections réordonnables : l'ordre et la visibilité viennent de /settings/layout (admin). Le hero reste en tête. */
+  const sectionNodes: Record<string, ReactNode> = {
+    trust: (
+      <Fragment key="trust">
+      {/* ---------- RÉASSURANCE ---------- */}
+      <section className="py-12 sm:py-16" aria-labelledby="why-title">
+        <div className="public-container">
+          <h2 id="why-title" className="sr-only">Pourquoi réserver avec IHOST</h2>
+          <Reveal>
+            <ul className="grid overflow-hidden rounded-[28px] border border-[var(--line)] bg-white sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-[var(--line)]">
+              {[
+                { icon: CalendarCheck, title: "Réservation simple", desc: "Choisissez vos dates, envoyez votre demande en un clic." },
+                { icon: ShieldCheck, title: "Confirmation fiable", desc: "Votre réservation est confirmée par notre équipe." },
+                { icon: Sparkles, title: "Offres sélectionnées", desc: "Hébergements et activités choisis partout en Tunisie." },
+                { icon: Headphones, title: "Équipe à l’écoute", desc: "Une question ? Écrivez-nous directement sur WhatsApp." },
+              ].map(({ icon: Icon, title, desc }) => (
+                <li key={title} className="flex gap-4 border-b border-[var(--line)] p-6 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0 lg:border-b-0">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--accent-tint)] text-[var(--accent-deep)]"><Icon size={22} /></span>
+                  <span>
+                    <span className="block text-base font-bold text-[var(--ink)]" style={display}>{title}</span>
+                    <span className="mt-1 block text-sm leading-6 text-[var(--ink-soft)]">{desc}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
+      </section>
+      </Fragment>
+    ),
+    promotions: (
+      <Fragment key="promotions">
+      {/* ---------- BONS PLANS (promotions) ---------- */}
+      {promos.length > 0 && (
+        <section className="py-14 sm:py-20" aria-labelledby="promo-title">
+          <div className="public-container">
+            <Reveal>
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+                <div>
+                  <p className="mb-2 inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-[.14em] text-[var(--promo)]"><span className="h-0.5 w-6 rounded-full bg-[var(--promo)]" />Bons plans</p>
+                  <h2 id="promo-title" className="text-balance text-3xl font-extrabold tracking-tight text-[var(--ink)] sm:text-4xl" style={display}>Promotions à ne pas manquer</h2>
+                  <p className="mt-3 max-w-xl text-base leading-7 text-[var(--ink-soft)] sm:text-lg">Des tarifs réduits pour une durée limitée.</p>
+                </div>
+                <Link href={`/${locale}/search`} className="group hidden items-center gap-1.5 text-sm font-bold text-[var(--ink)] underline-offset-4 hover:underline sm:inline-flex">Toutes les offres <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" /></Link>
+              </div>
+            </Reveal>
+            <Reveal delay={80}><div className="mt-8"><DealsCarousel offers={promos} locale={locale} /></div></Reveal>
+          </div>
+        </section>
+      )}
+      </Fragment>
+    ),
+    zones: (
+      <Fragment key="zones">
+      {/* ---------- EXPLORER PAR DESTINATION ---------- */}
+      {zones.length > 0 && (
+        <section className="bg-[var(--canvas-alt)] py-14 sm:py-20" aria-labelledby="zones-title">
+          <div className="public-container">
+            <Reveal><SectionTitle eyebrow="Destinations" title="Explorez la Tunisie" hint="Choisissez une destination pour voir ses offres." href={`/${locale}/search`} cta="Toutes les offres" /></Reveal>
+
+            <div className="-mx-4 mt-8 overflow-x-auto px-4 pb-3 pt-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Destinations avec offres">
+              <div className="flex gap-3">
+                {[{ id: "all", name: "Toutes les destinations", n: published.length, photo: undefined as { url: string } | undefined }, ...zoneStats.withOffers.map((z) => ({ id: z.id, name: z.name, n: zoneStats.count.get(z.id) ?? 0, photo: published.find((o) => o.zoneId === z.id && o.photos.length > 0)?.photos[0] }))].map((z) => {
+                  const on = zoneTab === z.id;
+                  return (
+                    <button key={z.id} type="button" role="tab" aria-selected={on} onClick={() => setZoneTab(z.id)}
+                      className={`flex shrink-0 items-center gap-3 rounded-2xl border-2 bg-white py-2.5 pe-5 ps-2.5 text-start transition-all ${on ? "border-[var(--ink)] shadow-md" : "border-transparent shadow-sm hover:border-[var(--line)] hover:shadow-md"}`}>
+                      <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[var(--accent-tint)]">
+                        {z.photo ? <RemoteImage src={z.photo.url} folder="offers" alt="" className="h-full w-full" /> : <MapPin size={20} className="absolute inset-0 m-auto text-[var(--accent-deep)]" aria-hidden="true" />}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-[var(--ink)]">{z.name}</span>
+                        <span className="block text-xs font-semibold text-[var(--ink-soft)]">{z.n} offre{z.n > 1 ? "s" : ""}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" key={zoneTab} aria-live="polite">
+              {loading
+                ? [1, 2, 3].map((i) => <div key={i} className="h-[440px] animate-pulse rounded-[26px] bg-white" />)
+                : zoneOffers.map((o, i) => (
+                    <Reveal key={o.id} delay={(i % 3) * 90}><OfferCard offer={o} locale={locale} onReserve={setBooking} /></Reveal>
+                  ))}
+            </div>
+            {!loading && zoneTotal > zoneOffers.length && (
+              <div className="mt-8 text-center">
+                <Link href={`/${locale}/search${activeZone ? `?zone=${activeZone.id}` : ""}`} className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-7 py-3.5 text-sm font-bold text-white transition hover:bg-black">
+                  Voir les {zoneTotal} offres{activeZone ? ` à ${activeZone.name}` : ""} <ArrowRight size={16} />
+                </Link>
+              </div>
+            )}
+
+            {zoneStats.others.length > 0 && (
+              <p className="mt-10 text-center text-sm leading-7 text-[var(--ink-soft)]">
+                <span className="font-bold text-[var(--ink)]">Bientôt disponibles :</span> {zoneStats.others.map((z) => z.name).join(" · ")}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+      </Fragment>
+    ),
+    categories: (
+      <Fragment key="categories">
+      {/* ---------- CATÉGORIES ---------- */}
+      {categories.length > 0 && (
+        <section className="py-14 sm:py-20">
+          <div className="public-container">
+            <Reveal><SectionTitle eyebrow="Catégories" title="Trouvez ce qui vous correspond" hint="Hébergement, activité ou escapade : une catégorie, une envie." href={`/${locale}/search`} cta="Voir tout" /></Reveal>
+            <div className="mt-9">
+              <CategoryShowcase categories={categories} locale={locale} />
+            </div>
+          </div>
+        </section>
+      )}
+      </Fragment>
+    ),
+    showcase: (
+      <Fragment key="showcase">
+      {showcase.length > 0 && (
+        <CoverFlowCarousel
+          items={showcase}
+          sectionLabel="Sélection IHOST"
+          onCtaClick={(item) => {
+            const match = featured.find((o) => `/offers/${o.slug}` === item.ctaUrl);
+            if (match) window.location.assign(`/${locale}${item.ctaUrl}`);
+          }}
+        />
+      )}
+      </Fragment>
+    ),
+    offers: (
+      <Fragment key="offers">
+      {/* ---------- OFFRES ---------- */}
+      <section className="py-14 sm:py-20">
+        <div className="public-container">
+          <Reveal><SectionTitle eyebrow="À la une" title="Des offres à découvrir" hint="Une sélection d'expériences prêtes à réserver." href={`/${locale}/search`} cta="Voir toutes les offres" /></Reveal>
+
+          {tabs.length > 1 && (
+            <div className="-mx-4 mt-7 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0" role="tablist" aria-label="Filtrer par catégorie">
+              <div className="flex gap-2">
+                {[{ id: "all", name: "Toutes" }, ...tabs].map((c) => (
+                  <button key={c.id} type="button" role="tab" aria-selected={tab === c.id} onClick={() => setTab(c.id)}
+                    className={`shrink-0 rounded-full border-2 px-5 py-2.5 text-sm font-bold transition-all ${tab === c.id ? "border-[var(--ink)] bg-[var(--ink)] text-white" : "border-[var(--line)] bg-white text-[var(--ink)] hover:border-[var(--ink)]"}`}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" key={tab}>
+            {loading
+              ? [1, 2, 3].map((i) => <div key={i} className="h-[440px] animate-pulse rounded-[26px] bg-[var(--canvas-alt)]" />)
+              : shown.map((o, i) => (
+                  <Reveal key={o.id} delay={(i % 3) * 90}>
+                    <OfferCard offer={o} locale={locale} onReserve={setBooking} />
+                  </Reveal>
+                ))}
+          </div>
+          {!loading && shown.length === 0 && <p className="mt-8 rounded-2xl bg-[var(--canvas-alt)] p-8 text-center text-base text-[var(--ink-soft)]">Aucune offre dans cette catégorie pour le moment.</p>}
+        </div>
+      </section>
+      </Fragment>
+    ),
+    contact: (
+      <Fragment key="contact">
+      {/* ---------- CONTACT ---------- */}
+      <section id="contact" className="pb-16 sm:pb-24">
+        <div className="public-container">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-[32px] bg-[var(--ink)] p-8 text-white sm:p-12">
+              <span aria-hidden="true" className="pointer-events-none absolute -end-20 -top-20 h-72 w-72 rounded-full bg-[var(--accent)]/25 blur-3xl" />
+              <div className="relative grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+                <div>
+                  <p className="text-sm font-extrabold uppercase tracking-[.14em] text-[var(--accent)]">Besoin d&apos;aide ?</p>
+                  <h2 className="mt-3 text-balance text-3xl font-extrabold tracking-tight sm:text-4xl" style={display}>Une équipe pour vous accompagner</h2>
+                  <p className="mt-3 max-w-xl text-base leading-7 text-white/80 sm:text-lg">Une question sur une offre, des dates, un groupe ? Écrivez-nous : nous vous répondons rapidement.</p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noopener noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#25D366] px-7 text-base font-extrabold text-white transition hover:bg-[#20bd5a]"><MessageCircle size={19} /> Écrire sur WhatsApp</a>
+                  )}
+                  <Link href={`/${locale}/contact`} className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-7 text-base font-extrabold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]">Contacter l&apos;équipe <ArrowRight size={18} /></Link>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+      </Fragment>
+    ),
   };
 
   return (
     <main className="public-shell">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {/* La barre de recherche vit maintenant dans la navbar (hero = grande barre au sommet) */}
       <PublicHeader hero />
 
@@ -130,32 +326,21 @@ export default function PublicHome() {
                 Contacter l’équipe
               </Link>
             </div>
-            <p className="public-reveal public-reveal-3 mt-4 text-sm text-[var(--ink-soft)]">La disponibilité est vérifiée automatiquement.</p>
+            <ul className="public-reveal public-reveal-4 mt-8 grid max-w-xl gap-3 sm:grid-cols-3" aria-label="Nos engagements">
+              {[
+                { icon: ShieldCheck, t: "Confirmation par notre équipe" },
+                { icon: CalendarCheck, t: "Dates vérifiées en direct" },
+                { icon: Headphones, t: "Assistance WhatsApp" },
+              ].map(({ icon: Icon, t }) => (
+                <li key={t} className="flex items-center gap-2.5 text-sm font-bold leading-snug text-[var(--ink)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-tint)] text-[var(--accent-deep)]"><Icon size={19} /></span>
+                  {t}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Mobile : image de couverture */}
-          <div className="public-reveal public-reveal-2 relative aspect-[16/10] overflow-hidden rounded-3xl bg-[var(--accent)] lg:hidden">
-            {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : <MapPin className="absolute end-6 top-6 text-[var(--ink)]/15" size={96} />}
-          </div>
-
-          {/* Bureau : couverture + collage */}
-          <div className="public-reveal public-reveal-3 relative hidden h-[480px] lg:block">
-            <div className="absolute inset-0 overflow-hidden rounded-[40px] bg-[var(--accent)]">
-              {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : <MapPin className="absolute end-10 top-10 text-[var(--ink)]/15" size={140} />}
-            </div>
-            {collage.map((o, i) => (
-              <Link
-                key={o.id}
-                href={`/${locale}/offers/${o.slug}`}
-                className={`group absolute w-56 overflow-hidden rounded-3xl border-4 border-white bg-white shadow-xl transition-transform duration-300 hover:-translate-y-1 ${i === 0 ? "-start-8 bottom-10" : "-end-4 top-12"}`}
-              >
-                <div className="h-32 overflow-hidden">
-                  <img src={imageUrl(o.photos[0].url, "offers")} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                </div>
-                <p className="line-clamp-1 px-3 py-2.5 text-sm font-bold text-[var(--ink)]">{o.name}</p>
-              </Link>
-            ))}
-          </div>
+          <HeroVisual cover={cover} offers={collage} locale={locale} />
         </div>
 
         {categories.length > 0 && (
@@ -174,112 +359,65 @@ export default function PublicHome() {
         )}
       </section>
 
-      {/* ---------- CONFIANCE ---------- */}
-      <section className="bg-[var(--accent)] py-8">
-        <div className="public-container grid gap-6 sm:grid-cols-3">
-          {[
-            { icon: CalendarCheck, title: "Réservation simple", desc: "Votre demande est enregistrée avant l'ouverture de WhatsApp." },
-            { icon: ShieldCheck, title: "Sélection locale", desc: "Des adresses et activités vérifiées, partout en Tunisie." },
-            { icon: MessageCircle, title: "Équipe joignable", desc: "Échangez directement avec nous sur WhatsApp." },
-          ].map(({ icon: Icon, title, desc }, i) => (
-            <Reveal key={title} delay={i * 100} className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[var(--ink)]"><Icon size={20} /></span>
-              <div>
-                <p className="text-base font-bold text-[var(--ink)]">{title}</p>
-                <p className="text-sm leading-6 text-[var(--ink)]/80">{desc}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------- DESTINATIONS ---------- */}
-      {zones.length > 0 && (
-        <section className="py-14 sm:py-20">
-          <div className="public-container">
-            <Reveal><SectionTitle title="Où partir ?" hint="Choisissez une zone et découvrez les offres disponibles." href={`/${locale}/search`} cta="Tout explorer" /></Reveal>
-            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-              {zones.slice(0, 8).map((z, i) => (
-                <Reveal key={z.id} delay={(i % 4) * 70}>
-                  <Link href={`/${locale}/search?zone=${z.id}`} className="group flex min-h-[120px] flex-col justify-between rounded-3xl border border-[var(--line)] bg-[var(--canvas-alt)] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)] hover:bg-[var(--accent-tint)] hover:shadow-lg">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--accent-deep)] transition-transform duration-300 group-hover:scale-110"><MapPin size={19} /></span>
-                    <div>
-                      <p className="text-lg font-bold text-[var(--ink)]" style={display}>{z.name}</p>
-                      {z._count?.offers ? <p className="text-sm text-[var(--ink-soft)]">{z._count.offers} offre{z._count.offers > 1 ? "s" : ""}</p> : null}
-                    </div>
+      {zoneStats.withOffers.length > 1 && (
+        <nav aria-label="Destinations populaires" className="border-y border-[var(--line)] bg-white">
+          <div className="public-container flex items-center gap-4 py-3.5">
+            <span className="hidden shrink-0 text-xs font-extrabold uppercase tracking-[.14em] text-[var(--ink-soft)] sm:block">Destinations populaires</span>
+            <ul className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {zoneStats.withOffers.map((z) => (
+                <li key={z.id} className="shrink-0">
+                  <Link href={`/${locale}/search?zone=${z.id}`} className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-4 py-2 text-sm font-bold text-[var(--ink)] transition-all hover:border-[var(--ink)] hover:shadow-sm">
+                    <MapPin size={14} className="text-[var(--accent-deep)]" aria-hidden="true" /> {z.name}
+                    <span className="rounded-full bg-[var(--canvas-alt)] px-2 py-0.5 text-xs font-extrabold text-[var(--ink-soft)]">{zoneStats.count.get(z.id)}</span>
                   </Link>
-                </Reveal>
+                </li>
               ))}
+            </ul>
+          </div>
+        </nav>
+      )}
+
+      {layout.sections.filter((x) => x.visible).map((x) => sectionNodes[x.id])}
+
+      <footer className="bg-[var(--ink)] text-white">
+        <div className="public-container grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+          <div>
+            <p className="text-2xl font-extrabold tracking-tight" style={display}>{site.nomSite}</p>
+            <p className="mt-3 max-w-xs text-[15px] leading-7 text-white/70">{site.sousTitre || "Hébergements, activités et expériences sélectionnées partout en Tunisie."}</p>
+            <div className="mt-5 flex gap-2">
+              {contact?.facebook && <a href={contact.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition hover:bg-[var(--accent)] hover:text-[var(--ink)]"><Facebook size={19} /></a>}
+              {contact?.instagram && <a href={contact.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition hover:bg-[var(--accent)] hover:text-[var(--ink)]"><Instagram size={19} /></a>}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* ---------- CATÉGORIES ---------- */}
-      {categories.length > 0 && (
-        <section className="pb-14 sm:pb-20">
-          <div className="public-container">
-            <Reveal><SectionTitle title="Trouvez ce qui vous correspond" hint="Hébergement, activité ou escapade : une catégorie, une envie." href={`/${locale}/search`} cta="Voir tout" /></Reveal>
-            <div className="mt-8">
-              <CategoryShowcase categories={categories} locale={locale} />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {showcase.length > 0 && (
-        <CoverFlowCarousel
-          items={showcase}
-          sectionLabel="Sélection IHOST"
-          onCtaClick={(item) => {
-            const match = featured.find((o) => `/offers/${o.slug}` === item.ctaUrl);
-            if (match) window.location.assign(`/${locale}${item.ctaUrl}`);
-          }}
-        />
-      )}
-
-      {/* ---------- OFFRES ---------- */}
-      <section className="py-14 sm:py-20">
-        <div className="public-container">
-          <Reveal><SectionTitle title="Des offres à découvrir" hint="Une sélection d'expériences prêtes à réserver." href={`/${locale}/search`} cta="Voir tout" /></Reveal>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {loading
-              ? [1, 2, 3].map((i) => <div key={i} className="h-[430px] animate-pulse rounded-3xl bg-[var(--canvas-alt)]" />)
-              : featured.map((o, i) => (
-                  <Reveal key={o.id} delay={(i % 3) * 90}>
-                    <OfferCard offer={o} locale={locale} onReserve={setBooking} />
-                  </Reveal>
-                ))}
+          <nav aria-label="Explorer">
+            <p className="text-sm font-extrabold uppercase tracking-[.14em] text-[var(--accent)]">Explorer</p>
+            <ul className="mt-4 space-y-3 text-[15px]">
+              <li><Link className="text-white/80 transition hover:text-white hover:underline" href={`/${locale}/search`}>Toutes les offres</Link></li>
+              {categories.slice(0, 4).map((c) => <li key={c.id}><Link className="text-white/80 transition hover:text-white hover:underline" href={`/${locale}/categories/${c.slug}`}>{c.name}</Link></li>)}
+            </ul>
+          </nav>
+          <nav aria-label="Destinations">
+            <p className="text-sm font-extrabold uppercase tracking-[.14em] text-[var(--accent)]">Destinations</p>
+            <ul className="mt-4 space-y-3 text-[15px]">
+              {zoneStats.ordered.slice(0, 5).map((z) => <li key={z.id}><Link className="text-white/80 transition hover:text-white hover:underline" href={`/${locale}/search?zone=${z.id}`}>{z.name}</Link></li>)}
+            </ul>
+          </nav>
+          <div>
+            <p className="text-sm font-extrabold uppercase tracking-[.14em] text-[var(--accent)]">Contact</p>
+            <ul className="mt-4 space-y-3 text-[15px] text-white/80">
+              {waLink && <li><a className="inline-flex items-center gap-2.5 transition hover:text-white" href={waLink} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /> WhatsApp</a></li>}
+              {contact?.telephone && <li><a className="inline-flex items-center gap-2.5 transition hover:text-white" href={`tel:${contact.telephone}`}><Phone size={17} /> {contact.telephone}</a></li>}
+              {contact?.email && <li><a className="inline-flex items-center gap-2.5 break-all transition hover:text-white" href={`mailto:${contact.email}`}><Mail size={17} /> {contact.email}</a></li>}
+              {contact?.adresse && <li className="flex items-start gap-2.5"><MapPin size={17} className="mt-0.5 shrink-0" /> {contact.adresse}</li>}
+              <li><Link className="font-bold text-white underline-offset-4 hover:underline" href={`/${locale}/contact`}>Formulaire de contact →</Link></li>
+            </ul>
           </div>
         </div>
-      </section>
-
-      {/* ---------- CONTACT ---------- */}
-      <section id="contact" className="pb-20">
-        <div className="public-container">
-          <Reveal>
-            <div className="grid gap-8 rounded-[36px] bg-[var(--accent)] p-8 sm:p-12 md:grid-cols-[1fr_auto] md:items-center">
-              <div>
-                <h2 className="text-balance text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-4xl" style={display}>Une équipe pour vous accompagner.</h2>
-                <p className="mt-3 max-w-xl text-base leading-7 text-[var(--ink)]/85">Choisissez une offre, envoyez votre demande et poursuivez l&apos;échange avec l&apos;administrateur directement sur WhatsApp.</p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Link href={`/${locale}/search`} className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-black">
-                  Explorer les offres <ArrowRight size={16} />
-                </Link>
-                <Link href={`/${locale}/contact`} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-bold text-[var(--ink)] transition-colors hover:bg-[var(--accent-tint)]">
-                  Contacter l’équipe
-                </Link>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <footer className="border-t border-[var(--line)] bg-white py-8">
-        <div className="public-container flex flex-col gap-3 text-sm text-[var(--ink-soft)] sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} {site.nomSite}. Tous droits réservés.</span>
-          <Link href={`/${locale}/contact`} className="font-semibold text-[var(--ink)] hover:underline">Contacter l’équipe</Link>
+        <div className="border-t border-white/10">
+          <div className="public-container flex flex-col gap-2 py-5 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
+            <span>© {new Date().getFullYear()} {site.nomSite}. Tous droits réservés.</span>
+            <span>Réservation en Tunisie · Confirmation par notre équipe</span>
+          </div>
         </div>
       </footer>
 

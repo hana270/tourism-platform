@@ -21,7 +21,7 @@ export default function DashboardHomePage({
       <div className="mb-8">
         <h1 className="font-display text-2xl font-semibold text-ink">{t('title')}</h1>
 
-        <p className="mt-1 text-sm text-ink-soft">{t('subtitle')}</p>
+        <p className="mt-1 text-sm text-ink-soft">Votre activité en un coup d’œil : ce qu’il faut traiter, ce qui marche, ce qui évolue.</p>
       </div>
 
       <DashboardOverview locale={locale} />

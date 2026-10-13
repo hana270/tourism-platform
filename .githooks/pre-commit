@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# IHOST — garde-fou anti-fuite : bloque un commit qui contient un secret.
+# Activation (une fois par poste) : git config core.hooksPath .githooks
+# Contrôle manuel : bash .githooks/pre-commit
+
+RED=$'\033[31m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
+fail=0
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# 1) Fichiers qui ne doivent jamais être versionnés
+while IFS= read -r f; do
+  case "$f" in
+    *.env.example|*.env.local.example) continue ;;
+  esac
+  if [[ "$f" =~ (^|/)\.env($|\.) ]] || [[ "$f" =~ \.(pem|key|p12|pfx|dump|zip)$ ]] || [[ "$f" =~ (^|/)(dump|backup)[^/]*\.sql$ ]] || [[ "$f" =~ service-account.*\.json$ ]]; then
+    echo "${RED}${BOLD}✗ Fichier sensible refusé :${RESET} $f"
+    fail=1
+  fi
+done <<< "$staged"
+
+# 2) Secrets dans le contenu ajouté (hors exemples et documentation)
+patterns=(
+  '(password|passwd|pwd|secret|api[_-]?key|token|smtp_pass)[A-Za-z_]*["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'[:space:]$`{]{10,}["'"'"']'
+  'postgres(ql)?://[^:/[:space:]]+:[^@[:space:]]+@'
+  'xkeysib-[A-Za-z0-9]+'
+  're_[A-Za-z0-9]{20,}'
+  'sk_(live|test)_[A-Za-z0-9]+'
+  '(pass|password|pwd)[^\n]{0,25}["'"'"'][a-z]{4} [a-z]{4} [a-z]{4} [a-z]{4}["'"'"']'
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+  'eyJhbGciOi[A-Za-z0-9._-]{30,}'
+)
+while IFS= read -r f; do
+  case "$f" in *.example|README.md|.githooks/*|package-lock.json) continue ;; esac
+  added=$(git diff --cached -U0 -- "$f" | grep -E '^\+' | grep -vE '^\+\+\+' )
+  [ -z "$added" ] && continue
+  for p in "${patterns[@]}"; do
+    # Les lectures de variables d'environnement ne sont pas des secrets.
+    hit=$(echo "$added" | grep -Eiv 'process\.env|env\.[A-Z_]+|z\.string|placeholder|example|<[^>]*>|\$\{' | grep -Ei -e "$p" | head -1)
+    if [ -n "$hit" ]; then
+      echo "${RED}${BOLD}✗ Secret probable dans${RESET} $f"
+      echo "    ${hit:0:110}…"
+      fail=1
+      break
+    fi
+  done
+done <<< "$staged"
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  echo "${RED}Commit bloqué.${RESET} Retirez le secret (variables d'environnement uniquement), puis recommencez."
+  echo "Si le secret a déjà été partagé : changez-le immédiatement chez le fournisseur."
+  exit 1
+fi
+exit 0

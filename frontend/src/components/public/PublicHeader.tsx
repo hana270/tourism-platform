@@ -141,7 +141,7 @@ export function PublicHeader({ hero = false }: { hero?: boolean }) {
 
   const hasSearch = !!(s.text || s.category || s.start);
   const mobileTitle = s.text || s.category?.name || "Commencer ma recherche";
-  const mobileSub = hasSearch ? `${formatDates(locale, s)} · ${formatGuests(s.guests)}` : "Lieu · Dates · Voyageurs";
+  const mobileSub = hasSearch ? `${formatDates(locale, s)} · ${formatGuests(s.guests)}` : "Lieu · Dates · Personnes";
 
   const logo = (
     <Link href={`/${locale}`} onClick={closeAll} className="notranslate flex min-w-0 items-center gap-2.5">

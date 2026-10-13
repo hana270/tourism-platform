@@ -63,11 +63,13 @@ export const catalog: Messages = {
     "categories": "Catégories",
     "zones": "Zones géographiques",
     "offers": "Offres",
-    "availability": "Disponibilités",
+    "availability": "Calendrier",
+    "analytics": "Analyses",
     "bookings": "Réservations",
     "promotions": "Promotions",
     "settingsContact": "Contact du site",
     "settingsHome": "Page d’accueil",
+    "settingsLayout": "Disposition du site",
     "admin": "Mon compte"
   },
   "meta": {
@@ -235,7 +237,7 @@ export const catalog: Messages = {
   },
   "offers": {
     "title": "Offres",
-    "subtitle": "Gérez les hébergements et expériences proposés aux voyageurs.",
+    "subtitle": "Gérez les hébergements et expériences proposés à vos clients.",
     "new": "Nouvelle offre",
     "searchPlaceholder": "Rechercher une offre ou une zone…",
     "all": "Tous les statuts",

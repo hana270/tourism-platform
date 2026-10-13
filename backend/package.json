@@ -5,6 +5,7 @@
   "description": "IHOST REST API - Next.js admin backend with Prisma and Supabase PostgreSQL",
   "main": "dist/server.js",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only --exit-child src/server.ts",
     "prebuild": "prisma generate",
     "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
@@ -19,6 +20,7 @@
     "images:verify": "tsx scripts/verify-offer-images.ts",
     "images:dedupe": "tsx scripts/verify-offer-images.ts --repair-duplicates",
     "db:reset-data": "tsx scripts/reset-data.ts",
+    "bookings:backfill": "tsx scripts/backfill-availability-blocks.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "echo \"Add Vitest/Supertest integration tests before production\""

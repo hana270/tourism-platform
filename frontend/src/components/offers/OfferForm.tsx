@@ -6,10 +6,11 @@ import { Hotel, ImagePlus, Info, Star, X } from 'lucide-react';
 import { Category } from '@/types/category';
 import { Offer, OfferFormValues, Zone } from '@/types/offer';
 import { OffersApi, assetUrl } from '@/lib/offers.api';
+import { OfferDetailsEditor } from '@/components/offers/OfferDetailsEditor';
 
 const empty: OfferFormValues = {
   categoryId: '', zoneId: '', name: '', description: '', status: 'PUBLISHED',
-  address: '', googleMapsUrl: '', isHotel: false, capacity: '', availabilityOnRequest: false, stars: '',
+  address: '', googleMapsUrl: '', isHotel: false, accommodationType: '', capacity: '', roomCount: '', availabilityOnRequest: false, stars: '',
   price: '', simplePrice: '', halfBoardPrice: '', allInclusivePrice: '', fullBoardPrice: '',
   photos: [],
   customFields: [],
@@ -28,7 +29,9 @@ function valuesFrom(offer?: Offer | null): OfferFormValues {
     address: offer.address ?? '',
     googleMapsUrl: offer.googleMapsUrl ?? '',
     isHotel: offer.isHotel,
+    accommodationType: offer.accommodationType ?? '',
     capacity: offer.capacity == null ? '' : String(offer.capacity),
+    roomCount: offer.roomCount == null ? '' : String(offer.roomCount),
     availabilityOnRequest: Boolean((offer as Offer & { availabilityOnRequest?: boolean; availabilityOnDemand?: boolean; disponibilite_sur_demande?: boolean | string }).availabilityOnDemand ?? (offer as Offer & { availabilityOnRequest?: boolean }).availabilityOnRequest ?? ((offer as Offer & { disponibilite_sur_demande?: boolean | string }).disponibilite_sur_demande === true || (offer as Offer & { disponibilite_sur_demande?: boolean | string }).disponibilite_sur_demande === 'Oui')),
     stars: offer.stars ? (String(offer.stars) as OfferFormValues['stars']) : '',
     price: offer.isHotel ? '' : str(offer.price),
@@ -37,7 +40,9 @@ function valuesFrom(offer?: Offer | null): OfferFormValues {
     allInclusivePrice: str(offer.allInclusivePrice),
     fullBoardPrice: str(offer.fullBoardPrice),
     photos: offer.photos.map((p) => ({ url: p.url, isPrimary: p.isPrimary, altText: p.altText ?? '' })),
-    customFields: (offer.customFields ?? []).map((f) => ({ fieldName: f.fieldName, value: f.value })),
+    customFields: [...(offer.customFields ?? [])]
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((f) => ({ fieldName: f.fieldName, value: f.value, fieldType: f.fieldType ?? 'TEXT', icon: f.icon ?? 'list', groupName: f.groupName ?? '' })),
   };
 }
 
@@ -204,6 +209,10 @@ export function OfferForm({ open, categories = [], zones = [], initial, submitti
                     {[1, 2, 3, 4, 5].map((s) => <option key={s} value={s}>{s} {t('star')}</option>)}
                   </select>
                 </Field>
+                <Field label="Nombre de chambres" hint="Facultatif">
+                  <input className="input" type="number" min="1" step="1" value={values.roomCount} onChange={(e) => set('roomCount', e.target.value)} placeholder="Ex. 40 — vide = pas de limite" />
+                  <p className="mt-1.5 text-xs leading-5 text-ink-faint">Plusieurs clients peuvent réserver en même temps. Les dates ne sont grisées que lorsque toutes les chambres sont réservées.</p>
+                </Field>
                 <Field label={t('simplePrice')} required>{moneyInput('simplePrice')}</Field>
                 <Field label={t('halfBoardPrice')} hint={t('optional')}>{moneyInput('halfBoardPrice')}</Field>
                 <Field label={t('allInclusivePrice')} hint={t('optional')}>{moneyInput('allInclusivePrice')}</Field>
@@ -219,13 +228,14 @@ export function OfferForm({ open, categories = [], zones = [], initial, submitti
             )}
           </section>
 
-          <section className="rounded-xl border border-border p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div><h3 className="text-sm font-semibold text-ink">Informations complémentaires</h3><p className="mt-1 text-xs text-ink-faint">Ajoutez librement des caractéristiques propres à cette offre ou à cet hôtel.</p></div>
-              <button type="button" className="btn-secondary" onClick={() => set('customFields', [...values.customFields, { fieldName: '', value: '' }])}>+ Ajouter un champ</button>
-            </div>
-            {values.customFields.length === 0 ? <p className="rounded-xl bg-surface-alt p-4 text-xs text-ink-faint">Aucun champ complémentaire. Vous pouvez en ajouter si nécessaire.</p> : <div className="grid gap-3">{values.customFields.map((field, index) => <div key={index} className="grid gap-3 rounded-xl border border-border bg-surface-alt/40 p-3 md:grid-cols-[1fr_1.5fr_auto]"><input className="input bg-surface" placeholder="Nom du champ (ex. Petit-déjeuner)" value={field.fieldName} onChange={e=>set('customFields', values.customFields.map((f,i)=>i===index?{...f,fieldName:e.target.value}:f))}/><textarea className="input min-h-12 bg-surface" placeholder="Valeur ou description" value={field.value} onChange={e=>set('customFields', values.customFields.map((f,i)=>i===index?{...f,value:e.target.value}:f))}/><button type="button" className="btn-icon h-10 w-10 text-danger" onClick={()=>set('customFields', values.customFields.filter((_,i)=>i!==index))} title="Supprimer"><X size={15}/></button></div>)}</div>}
-          </section>
+          <OfferDetailsEditor
+            fields={values.customFields}
+            onFields={(next) => set('customFields', next)}
+            accommodationType={values.accommodationType}
+            onAccommodationType={(v) => set('accommodationType', v)}
+            isHotel={values.isHotel}
+            capacity={values.capacity && Number(values.capacity) >= 1 ? Number(values.capacity) : null}
+          />
 
           {touched && !valid && (
             <div className="rounded-lg bg-danger-soft p-3 text-sm text-danger"><Info size={16} className="mr-2 inline" />{t('required')}</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { passwordIsValid } from "@/lib/auth-errors";
 import {
   Camera,
   KeyRound,
@@ -151,7 +152,7 @@ export default function AccountPage() {
     if (!currentPassword)
       errors.currentPassword = "Saisissez votre mot de passe actuel.";
     if (!newPassword) errors.newPassword = "Saisissez un nouveau mot de passe.";
-    else if (newPassword.length < 8) errors.newPassword = t("passwordTooShort");
+    else if (!passwordIsValid(newPassword)) errors.newPassword = "Au moins 10 caractères, avec au moins une lettre et un chiffre.";
     else if (newPassword === currentPassword)
       errors.newPassword =
         "Le nouveau mot de passe doit être différent de l’actuel.";

@@ -20,6 +20,19 @@ const envSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_GRAPH_VERSION: z.string().default('v23.0'),
+  // Notification WhatsApp envoyée par le SERVEUR (template Meta). Désactivée par défaut : le client envoie déjà
+  // son message via WhatsApp (un seul clic). Activer uniquement si vous voulez une notification supplémentaire.
+  WHATSAPP_SERVER_NOTIFY: z.enum(['true', 'false']).default('false'),
+  // E-mails transactionnels (réinitialisation du mot de passe…). Un seul fournisseur suffit.
+  // MAIL_FROM : « IHOST <no-reply@votre-domaine.com> » (adresse/domaine vérifié chez le fournisseur).
+  MAIL_FROM: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  // SMTP classique (ex. Gmail : smtp.gmail.com, port 587, mot de passe d'application). Aucun mot de passe dans le code.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

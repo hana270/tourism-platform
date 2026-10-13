@@ -7,7 +7,9 @@ import {
   BadgePercent,
   Phone,
   Home,
+  LayoutTemplate,
   ShieldCheck,
+  CalendarDays,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -17,9 +19,11 @@ export type NavKey =
   | 'zones'
   | 'offers'
   | 'bookings'
+  | 'availability'
   | 'promotions'
   | 'settingsContact'
   | 'settingsHome'
+  | 'settingsLayout'
   | 'admin';
 
 export type NavSection = 'main' | 'catalog' | 'operations' | 'settings';
@@ -40,9 +44,11 @@ export const navItems: NavItem[] = [
   { key: 'zones', href: '/dashboard/zones', icon: MapPin, enabled: true, section: 'catalog' },
   { key: 'offers', href: '/dashboard/offers', icon: Tag, enabled: true, section: 'catalog' },
   { key: 'bookings', href: '/dashboard/bookings', icon: ClipboardList, enabled: true, section: 'operations' },
+  { key: 'availability', href: '/dashboard/availability', icon: CalendarDays, enabled: true, section: 'operations' },
   { key: 'promotions', href: '/dashboard/promotions', icon: BadgePercent, enabled: true, section: 'operations' },
   { key: 'settingsContact', href: '/dashboard/settings/contact', icon: Phone, enabled: true, section: 'settings' },
   { key: 'settingsHome', href: '/dashboard/settings/homepage', icon: Home, enabled: true, section: 'settings' },
+  { key: 'settingsLayout', href: '/dashboard/settings/layout', icon: LayoutTemplate, enabled: true, section: 'settings' },
   { key: 'admin', href: '/dashboard/account', icon: ShieldCheck, enabled: true, section: 'settings' },
 ];
 

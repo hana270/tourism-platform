@@ -120,6 +120,8 @@ model Offer {
   priceUnit            String              @default("par personne")
   isHotel              Boolean             @default(false)
   capacity             Int?
+  // Hôtels : nombre de chambres réservables en même temps (vide = pas de limite). Sert au calendrier de disponibilité.
+  roomCount            Int?
   status               OfferStatus         @default(PUBLISHED)
   availabilityOnDemand Boolean             @default(false)
   stars                Int?
@@ -130,6 +132,7 @@ model Offer {
   address              String?
   googleMapsUrl        String?
   featured             Boolean             @default(false)
+  accommodationType    String?
   slug                 String              @unique
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
@@ -167,6 +170,10 @@ model OfferCustomField {
   offerId   String
   fieldName String
   value     String
+  fieldType String @default("TEXT")
+  icon      String?
+  groupName String?
+  position  Int    @default(0)
   offer     Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   @@index([offerId])
@@ -189,6 +196,10 @@ model Reservation {
   endDate            DateTime?
   adminNotes         String?
   paymentStatus      PaymentStatus       @default(NOT_PAID)
+  // Formule choisie par le client (hôtels : SIMPLE / HALF_BOARD / FULL_BOARD / ALL_INCLUSIVE ; autres : BASE)
+  // et prix unitaire appliqué au moment de la demande (promotion comprise, calculé par le serveur).
+  priceType          String?
+  unitPrice          Decimal?            @db.Decimal(10, 2)
   availabilityBlocks AvailabilityBlock[]
   offer              Offer               @relation(fields: [offerId], references: [id])
 
@@ -214,6 +225,8 @@ model AvailabilityBlock {
 model Promotion {
   id             String          @id @default(cuid())
   offerId        String
+  // Prix concerné : BASE (offre à prix unique) ou SIMPLE / HALF_BOARD / FULL_BOARD / ALL_INCLUSIVE (hôtels).
+  priceType      String          @default("BASE")
   oldPrice       Decimal         @db.Decimal(10, 2)
   newPrice       Decimal         @db.Decimal(10, 2)
   startDate      DateTime
@@ -225,6 +238,7 @@ model Promotion {
   offer          Offer           @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   @@index([offerId, startDate, endDate, status])
+  @@index([offerId, priceType, startDate, endDate])
   @@map("promotions")
 }
 

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import type { FileFilterCallback } from "multer";
 import { OfferStatus } from "@prisma/client";
 import { z } from "zod";
+import { syncPromotionsWithOffer } from "@/modules/promotions/promotion.service";
 import slugify from "slugify";
 import multer from "multer";
 import sharp from "sharp";
@@ -91,6 +92,19 @@ const offerInput = z
     address: z.string().trim().max(300).nullable().optional(),
     googleMapsUrl: z.string().trim().url().nullable().optional(),
     isHotel: z.coerce.boolean().default(false),
+    accommodationType: z.enum(["HOTEL", "APARTMENT", "VILLA", "GUESTHOUSE", "OTHER"]).nullable().optional(),
+    capacity: z
+      .preprocess(
+        (v) => (v === "" || v === null || v === undefined ? null : v),
+        z.coerce.number().int().min(1).max(1000).nullable(),
+      )
+      .optional(),
+    roomCount: z
+      .preprocess(
+        (v) => (v === "" || v === null || v === undefined ? null : v),
+        z.coerce.number().int().min(1).max(10000).nullable(),
+      )
+      .optional(),
     stars: z
       .preprocess(
         (v) => (v === "" || v === undefined ? null : v),
@@ -104,15 +118,25 @@ const offerInput = z
     fullBoardPrice: optionalMoney,
     photos: z.array(photo).max(30).default([]),
     availabilityOnDemand: z.coerce.boolean().default(false),
-    customFields: z
-      .array(
-        z.object({
-          fieldName: z.string().trim().min(1).max(120),
-          value: z.string().trim().min(1).max(3000),
-        }),
-      )
-      .max(30)
-      .default([]),
+    /* Champs facultatifs : toute ligne sans nom ou sans valeur est simplement ignorée (jamais d'erreur). */
+    customFields: z.preprocess(
+      (v) =>
+        Array.isArray(v)
+          ? v.filter((f) => f && String(f.fieldName ?? "").trim() !== "" && String(f.value ?? "").trim() !== "")
+          : [],
+      z
+        .array(
+          z.object({
+            fieldName: z.string().trim().min(1).max(120),
+            value: z.string().trim().min(1).max(3000),
+            fieldType: z.enum(["TEXT", "NUMBER", "BOOLEAN", "LIST", "LINK"]).catch("TEXT").default("TEXT"),
+            icon: z.string().trim().max(40).nullable().optional().catch(null),
+            groupName: z.string().trim().max(80).nullable().optional().catch(null),
+          }),
+        )
+        .max(60)
+        .default([]),
+    ),
   })
   .superRefine((v, ctx) => {
     if (v.isHotel) {
@@ -143,16 +167,13 @@ const include: Prisma.OfferInclude = {
   },
 
   customFields: {
-    orderBy: {
-      id: "asc",
-    },
+    orderBy: [{ position: "asc" }, { id: "asc" }],
   },
 
   promotions: {
+    // Public : seules les promotions actives (les promotions désactivées ou échues n'apparaissent jamais).
     where: {
-      status: {
-        not: PromotionStatus.EXPIRED,
-      },
+      status: PromotionStatus.ACTIVE,
     },
     orderBy: {
       startDate: "desc",
@@ -178,6 +199,18 @@ function normalizePhotos(input: OfferInput) {
   return list.map((p, index) => ({ ...p, isPrimary: index === coverIndex }));
 }
 
+/** Champs personnalisés : ordre conservé (position), valeurs vides ignorées, icône/groupe nettoyés. */
+function normalizeFields(input: OfferInput) {
+  return input.customFields.map((f, position) => ({
+    fieldName: f.fieldName,
+    value: f.value,
+    fieldType: f.fieldType,
+    icon: f.icon || null,
+    groupName: f.groupName || null,
+    position,
+  }));
+}
+
 function baseData(input: OfferInput) {
   const hotel = input.isHotel;
   return {
@@ -189,6 +222,9 @@ function baseData(input: OfferInput) {
     address: input.address || null,
     googleMapsUrl: input.googleMapsUrl || null,
     isHotel: hotel,
+    accommodationType: input.accommodationType ?? null,
+    capacity: hotel ? null : (input.capacity ?? null),
+    roomCount: hotel ? (input.roomCount ?? null) : null,
     stars: hotel ? (input.stars ?? null) : null,
     simplePrice: hotel ? (input.simplePrice ?? null) : null,
     halfBoardPrice: hotel ? (input.halfBoardPrice ?? null) : null,
@@ -254,8 +290,10 @@ router.get(
     if (isPublic) res.setHeader("Cache-Control", "public, max-age=15, stale-while-revalidate=60");
     const offers = await prisma.offer.findMany({
       where: {
-        ...(isPublic
-          ? { NOT: { availabilityBlocks: { some: { startDate: { lt: to }, endDate: { gt: from } } } } }
+        // Filtre par dates (recherche avec dates choisies) : on masque seulement les offres à unité unique déjà prises.
+        // Les hôtels (plusieurs chambres) restent affichés ; sans dates choisies, aucune offre n'est masquée.
+        ...(isPublic && hasRange
+          ? { OR: [{ isHotel: true }, { NOT: { availabilityBlocks: { some: { startDate: { lt: to }, endDate: { gt: from } } } } }] }
           : {}),
         ...(req.query.status
           ? { status: String(req.query.status) as OfferStatus }
@@ -272,6 +310,21 @@ router.get(
       success: true,
       data: await Promise.all(offers.map((offer) => localize(offer, req))),
     });
+  }),
+);
+
+router.get(
+  "/slug/:slug",
+  asyncHandler(async (req: Request, res: Response) => {
+    // Page publique : seules les offres publiées sont visibles (l'identifiant reste accepté en secours).
+    const key = req.params.slug;
+    const offer = await prisma.offer.findFirst({
+      where: { OR: [{ slug: key }, { id: key }], status: "PUBLISHED" },
+      include,
+    });
+    if (!offer) throw ApiError.notFound("Offre introuvable.");
+    res.setHeader("Cache-Control", "public, max-age=15, stale-while-revalidate=60");
+    res.json({ success: true, data: await localize(offer, req) });
   }),
 );
 
@@ -305,7 +358,7 @@ router.post(
         ...(await translatedFields(input)),
         slug,
         photos: { create: normalizePhotos(input) },
-        customFields: { create: input.customFields },
+        customFields: { create: normalizeFields(input) },
       },
       include,
     });
@@ -334,7 +387,7 @@ router.patch(
       await tx.offerCustomField.deleteMany({ where: { offerId: id } });
       if (input.customFields.length) {
         await tx.offerCustomField.createMany({
-          data: input.customFields.map((field) => ({ ...field, offerId: id })),
+          data: normalizeFields(input).map((field) => ({ ...field, offerId: id })),
         });
       }
       return tx.offer.update({
@@ -342,7 +395,6 @@ router.patch(
         data: {
           ...baseData(input),
           ...(await translatedFields(input)),
-          slug: slugify(`${input.name}-${id}`, { lower: true, strict: true }),
         },
         include,
       });
@@ -351,6 +403,7 @@ router.patch(
     await deleteStoredUrls(
       existing.photos.filter((photo) => !keptUrls.has(photo.url)).map((photo) => photo.url),
     );
+    await syncPromotionsWithOffer(id);
     await audit(req.auth!.userId, "UPDATE", "Offer", id, { name: data.name });
     res.json({ success: true, data });
   }),

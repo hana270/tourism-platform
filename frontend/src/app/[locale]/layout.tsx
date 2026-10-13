@@ -29,7 +29,7 @@ export async function generateMetadata({
       .replace(/\/$/, '')
       .replace(/\/api(\/v1)?$/, '');
 
-    const response = await fetch(`${origin}/api/v1/settings/homepage`, { cache: 'no-store' });
+    const response = await fetch(`${origin}/api/v1/settings/homepage`, { next: { revalidate: 300 } });
 
     if (response.ok) {
       const body = await response.json();
@@ -47,14 +47,19 @@ export async function generateMetadata({
     // le site public depuis ce layout parent.
     robots: { index: true, follow: true },
     applicationName: siteName,
+    category: 'travel',
+    formatDetection: { telephone: false, email: false, address: false },
+    // Google Search Console : renseigner NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION (valeur de la balise meta fournie par Google).
+    verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
     icons: siteLogo ? { icon: siteLogo, shortcut: siteLogo, apple: siteLogo } : undefined,
     openGraph: {
       title: t('siteTitle', { siteName }),
       description: t('siteDescription'),
-      locale,
+      locale: 'fr_TN',
       siteName,
       type: 'website',
     },
+    twitter: { card: 'summary_large_image', title: t('siteTitle', { siteName }), description: t('siteDescription') },
   };
 }
 

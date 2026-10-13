@@ -54,3 +54,19 @@ export function monthGrid(year: number, month: number): (string | null)[] {
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
+
+/* ---------- Disponibilité (réservations confirmées) ---------- */
+export type DateRange = { startDate: string; endDate: string };
+
+/** La nuit du jour `day` est-elle déjà prise ? (le jour de départ d'une réservation reste libre) */
+export function nightIsTaken(blocks: DateRange[], day: string): boolean {
+  return blocks.some((b) => b.startDate.slice(0, 10) <= day && day < b.endDate.slice(0, 10));
+}
+
+/** Toutes les nuits de [from, to[ sont-elles libres ? */
+export function rangeIsFree(blocks: DateRange[], from: string, to: string): boolean {
+  if (!from || !to || to <= from) return true;
+  if (daysBetween(from, to) > 366) return false;
+  for (let d = from; d < to; d = addDaysISO(d, 1)) if (nightIsTaken(blocks, d)) return false;
+  return true;
+}

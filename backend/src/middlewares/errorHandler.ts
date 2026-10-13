@@ -101,6 +101,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
         ]);
       case 'P2003': // lien avec un autre élément
         return fail(res, 409, 'Opération impossible : cet élément est lié à d’autres données.');
+      case 'P2021': // table absente
+      case 'P2022': // colonne absente : migration non appliquée
+        // eslint-disable-next-line no-console
+        console.error('⚠️ Base non à jour :', err.message);
+        return fail(res, 500, 'La base de données n’est pas à jour. Exécutez « npx prisma migrate deploy » dans le dossier backend, puis redémarrez le serveur.');
       case 'P2025':
         return fail(res, 404, 'Élément introuvable.');
     }
@@ -113,6 +118,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     const details = missing.map((m) => ({ path: m[1], message: REQUIRED }));
     // eslint-disable-next-line no-console
     console.error('⚠️ Prisma validation error:', err.message);
+    // Client Prisma généré avant la dernière migration : champ inconnu.
+    if (/Unknown argument|Unknown field/i.test(err.message)) {
+      return fail(res, 500, 'Le client Prisma n’est pas à jour. Exécutez « npx prisma generate » (et « npx prisma migrate deploy ») dans le dossier backend, puis redémarrez le serveur.');
+    }
     return fail(res, 400, 'Certains champs obligatoires sont manquants ou invalides.', details.length ? details : null);
   }
 

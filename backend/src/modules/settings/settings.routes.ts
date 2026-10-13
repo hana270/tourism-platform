@@ -35,4 +35,40 @@ router.post('/homepage/upload', requireAuth, requireRole('ADMIN'), upload, async
   res.status(201).json({ success: true, data: { url } });
 }));
 
+/* ---------- Disposition du site (ordre des sections d'accueil + champs de recherche mobile) ---------- */
+const HOME_SECTIONS = ['trust', 'promotions', 'zones', 'categories', 'showcase', 'offers', 'contact'] as const;
+const SEARCH_FIELDS = ['where', 'date', 'guests', 'zone', 'category'] as const;
+const layoutKeys = { sections: 'layout_home_sections', search: 'layout_search_fields' } as const;
+const layoutItems = <T extends readonly [string, ...string[]]>(ids: T) =>
+  z.array(z.object({ id: z.enum(ids), visible: z.boolean() })).max(ids.length);
+const layoutSchema = z.object({ sections: layoutItems(HOME_SECTIONS), searchFields: layoutItems(SEARCH_FIELDS) });
+
+/** Relit la valeur enregistrée, retire les doublons/ids inconnus et ajoute les nouveaux ids manquants (visibles). */
+function normalizeLayout(raw: string | undefined, ids: readonly string[]) {
+  let parsed: { id: string; visible: boolean }[] = [];
+  try { const v = JSON.parse(raw ?? '[]'); if (Array.isArray(v)) parsed = v; } catch { /* valeur invalide : défaut */ }
+  const seen = new Set<string>();
+  const list = parsed.filter((i) => i && ids.includes(i.id) && !seen.has(i.id) && !!seen.add(i.id)).map((i) => ({ id: i.id, visible: i.visible !== false }));
+  // Un nouvel id est inséré à sa place par défaut (après son voisin précédent), pas en fin de liste.
+  ids.forEach((id, idx) => {
+    if (seen.has(id)) return;
+    const prevId = ids.slice(0, idx).reverse().find((x) => list.some((i) => i.id === x));
+    const at = prevId ? list.findIndex((i) => i.id === prevId) + 1 : 0;
+    list.splice(at, 0, { id, visible: true });
+    seen.add(id);
+  });
+  return list;
+}
+async function readLayout() {
+  const v = await readKeys(Object.values(layoutKeys));
+  return { sections: normalizeLayout(v[layoutKeys.sections], HOME_SECTIONS), searchFields: normalizeLayout(v[layoutKeys.search], SEARCH_FIELDS) };
+}
+router.get('/layout', asyncHandler(async (_req: Request, res: Response) => { res.json({ success: true, data: await readLayout() }); }));
+router.patch('/layout', requireAuth, requireRole('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
+  const input = layoutSchema.parse(req.body);
+  await saveKeys({ [layoutKeys.sections]: JSON.stringify(input.sections), [layoutKeys.search]: JSON.stringify(input.searchFields) });
+  await audit(req.auth!.userId, 'UPDATE', 'SiteLayout', 'layout', { sections: input.sections.map((s) => s.id), searchFields: input.searchFields.map((s) => s.id) });
+  res.json({ success: true, data: await readLayout() });
+}));
+
 export default router;
